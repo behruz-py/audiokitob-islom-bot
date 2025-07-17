@@ -1,0 +1,90 @@
+{
+    "kitoblar": [
+        {
+            "id": "1",
+            "nomi": "Chunki Sen ALLOHSAN",
+            "qismlar": [
+                {
+                    "nomi": "1-qism",
+                    "audio_url": "https://t.me/baza_audiokitob_hudauz/3"
+                },
+                {
+                    "nomi": "2-qism",
+                    "audio_url": "https://t.me/baza_audiokitob_hudauz/4"
+                },
+                {
+                    "nomi": "3-qism",
+                    "audio_url": "https://t.me/baza_audiokitob_hudauz/5"
+                },
+                {
+                    "nomi": "4-qism",
+                    "audio_url": "https://t.me/baza_audiokitob_hudauz/6"
+                },
+                {
+                    "nomi": "5-qism",
+                    "audio_url": "https://t.me/baza_audiokitob_hudauz/7"
+                },
+                {
+                    "nomi": "6-qism",
+                    "audio_url": "https://t.me/baza_audiokitob_hudauz/8"
+                },
+                {
+                    "nomi": "7-qism",
+                    "audio_url": "https://t.me/baza_audiokitob_hudauz/9"
+                },
+                {
+                    "nomi": "8-qism",
+                    "audio_url": "https://t.me/baza_audiokitob_hudauz/10"
+                },
+                {
+                    "nomi": "9-qism",
+                    "audio_url": "https://t.me/baza_audiokitob_hudauz/11"
+                },
+                {
+                    "nomi": "10-qism",
+                    "audio_url": "https://t.me/baza_audiokitob_hudauz/12"
+                },
+                {
+                    "nomi": "11-qism",
+                    "audio_url": "https://t.me/baza_audiokitob_hudauz/13"
+                },
+                {
+                    "nomi": "12-qism",
+                    "audio_url": "https://t.me/baza_audiokitob_hudauz/14"
+                },
+                {
+                    "nomi": "13-qism",
+                    "audio_url": "https://t.me/baza_audiokitob_hudauz/15"
+                },
+                {
+                    "nomi": "14-qism",
+                    "audio_url": "https://t.me/baza_audiokitob_hudauz/16"
+                },
+                {
+                    "nomi": "15-qism",
+                    "audio_url": "https://t.me/baza_audiokitob_hudauz/17"
+                },
+                {
+                    "nomi": "16-qism",
+                    "audio_url": "https://t.me/baza_audiokitob_hudauz/18"
+                },
+                {
+                    "nomi": "17-qism",
+                    "audio_url": "https://t.me/baza_audiokitob_hudauz/19"
+                },
+                {
+                    "nomi": "18-qism",
+                    "audio_url": "https://t.me/baza_audiokitob_hudauz/20"
+                },
+                {
+                    "nomi": "19-qism",
+                    "audio_url": "https://t.me/baza_audiokitob_hudauz/21"
+                },
+                {
+                    "nomi": "20-qism",
+                    "audio_url": "https://t.me/baza_audiokitob_hudauz/22"
+                }
+            ]
+        }
+    ]
+}
