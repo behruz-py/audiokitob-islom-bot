@@ -1,7 +1,7 @@
-import os
 from dotenv import load_dotenv
+import os
 
-load_dotenv()
+load_dotenv(dotenv_path=".env")  # bu qatorda fayl nomini majburan belgilaymiz
 
 BOT_TOKEN = os.getenv("BOT_TOKEN")
 
