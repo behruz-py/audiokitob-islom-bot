@@ -1,1 +1,7 @@
 .env
+data/*.db
+data/*.sqlite
+*.db
+*.sqlite
+*.db-wal
+*.db-shm
