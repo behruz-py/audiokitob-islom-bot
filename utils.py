@@ -1,46 +1,76 @@
-import json
-import os
+"""
+utils.py
+========
+Changelog:
+- (Yangi) is_admin(user_id): .env (ADMINS) va DB (storage.get_admins) ni birlashtirib tekshiradi
+- load_admins/save_admins saqlanib qoldi (admin_manage.py mosligi uchun)
+- BACK_HOME_KB o'zgarishsiz
+"""
+
 from telegram import InlineKeyboardMarkup, InlineKeyboardButton
-
-ADMINS_FILE = "data/admins.json"
-BOOK_FILE = "data/books.json"
-
-
-def load_admins():
-    if not os.path.exists(ADMINS_FILE):
-        return {}
-    with open(ADMINS_FILE, "r", encoding="utf-8") as f:
-        return json.load(f)
+from storage import get_admins, add_admin, delete_admin
+from config import ADMINS as ENV_ADMINS
 
 
-def save_admins(admins):
-    with open(ADMINS_FILE, "w", encoding="utf-8") as f:
-        json.dump(admins, f, indent=4, ensure_ascii=False)
+def _to_int_set(values) -> set[int]:
+    s: set[int] = set()
+    if not values:
+        return s
+    for v in values:
+        try:
+            s.add(int(v))
+        except Exception:
+            continue
+    return s
 
 
 def is_admin(user_id: int) -> bool:
-    admins = load_admins()
-    return str(user_id) in admins
+    """
+    .env dagi ADMINS va DB dagi adminlar roʻyxatini birlashtirib tekshiradi.
+    Shunday qilib, admin panel orqali qoʻshilgan yangi admin ham zudlik bilan tan olinadi.
+    """
+    # .env dagi (config.ADMINS) — odatda [int, int, ...]
+    env_admins: set[int] = _to_int_set(ENV_ADMINS)
+
+    # DB dagi adminlar
+    try:
+        db_admins: set[int] = {int(r["id"]) for r in get_admins()}
+    except Exception:
+        db_admins = set()
+
+    return int(user_id) in env_admins or int(user_id) in db_admins
 
 
+# Eski kod bilan moslik (admin_manage.py foydalanadi)
+def load_admins() -> dict:
+    """
+    admin_manage.py mosligi uchun: DB dagi adminlarni
+    { "123": {"id":123, "name":"..."} } ko‘rinishida qaytaradi.
+    """
+    data = get_admins()  # [{'id':..., 'name':...}]
+    return {str(r["id"]): {"id": int(r["id"]), "name": r.get("name") or ""} for r in data}
+
+
+def save_admins(admins: dict):
+    """
+    admin_manage.py mosligi uchun: berilgan dict ni DB bilan sinxronlashtiradi.
+    Minimal diff bilan ishlaydi: yangilarni qo‘shadi, mavjuddan yo‘q bo‘lganlarini o‘chiradi.
+    """
+    existing = load_admins()
+    # qo'shilganlar
+    for k, v in admins.items():
+        if k not in existing:
+            add_admin(int(v["id"]), v.get("name") or "")
+    # o'chirilganlar
+    for k in list(existing.keys()):
+        if k not in admins:
+            delete_admin(int(k))
+
+
+# Orqaga/Asosiy klaviatura (admin bo'limlarida)
 BACK_HOME_KB = InlineKeyboardMarkup([
     [
-        InlineKeyboardButton("🔙 Ortga", callback_data="admin_manage_admins"),
-        InlineKeyboardButton("🏠 Asosiy menyu", callback_data="admin_panel")
+        InlineKeyboardButton("🔙 Ortga", callback_data="admin_panel"),
+        InlineKeyboardButton("🏠 Asosiy menyu", callback_data="home")
     ]
 ])
-
-
-# utils.py
-
-
-def load_books():
-    if os.path.exists(BOOK_FILE):
-        with open(BOOK_FILE, "r", encoding="utf-8") as f:
-            return json.load(f)
-    return {"kitoblar": []}
-
-
-def save_books(data):
-    with open(BOOK_FILE, "w", encoding="utf-8") as f:
-        json.dump(data, f, ensure_ascii=False, indent=4)

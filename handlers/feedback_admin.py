@@ -1,42 +1,55 @@
-import json
-import os
+"""
+handlers/feedback_admin.py
+==========================
+Changelog:
+- (Yangi) ♻️ Takrorlarni tozalash tugmasi
+- (Yangi) deduplicate_feedback() chaqirib, natijani ko'rsatadi
+"""
+
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
 from telegram.ext import ContextTypes
-
-FEEDBACK_FILE = "data/feedback.json"
-
+from storage import get_feedback, deduplicate_feedback
 
 async def show_last_feedbacks(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
 
-    # Fayldan feedbacklar ro'yxatini yuklash
-    feedbacks = []
-    if os.path.exists(FEEDBACK_FILE):
-        with open(FEEDBACK_FILE, "r", encoding="utf-8") as f:
-            feedbacks = json.load(f)
+    feedbacks = get_feedback(10)
 
-    # Fikrlar mavjud bo'lmasa
     if not feedbacks:
         text = "ℹ️ Hozircha hech qanday fikr bildirilmagan."
     else:
         text = "💬 So‘nggi 10 ta foydalanuvchi fikri:\n\n"
-        for fb in reversed(feedbacks[-10:]):
-            name = fb.get("name", "Nomaʼlum")
-            username = fb.get("username", "Nomaʼlum")
-            message = fb.get("text", "")
-
-            username_str = f"@{username}" if username != "Nomaʼlum" and username else "username: yo‘q"
+        for fb in feedbacks:
+            name = fb.get("name") or "Nomaʼlum"
+            username = fb.get("username") or ""
+            message = fb.get("text") or ""
+            username_str = f"@{username}" if username else "username: yo‘q"
             text += f"<b>{name}</b> ({username_str}):\n{message}\n\n"
 
-    # Tugmalar
     keyboard = [
+        [InlineKeyboardButton("♻️ Takrorlarni tozalash", callback_data="admin_dedupe_feedback")],
         [InlineKeyboardButton("🔙 Ortga", callback_data="admin_panel")],
         [InlineKeyboardButton("🏠 Asosiy menyu", callback_data="home")]
     ]
 
     await query.edit_message_text(
-        text=text,
-        parse_mode="HTML",
+        text=text, parse_mode="HTML",
         reply_markup=InlineKeyboardMarkup(keyboard)
     )
+
+# ♻️ Takrorlarni tozalash
+async def dedupe_feedback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    await query.answer()
+
+    removed = deduplicate_feedback()
+    text = f"✅ Tayyor. Takror fikrlar tozalandi.\n\n🗑 O‘chirilganlar soni: <b>{removed}</b> ta"
+
+    keyboard = [
+        [InlineKeyboardButton("🔙 Ortga (fikrlar)", callback_data="admin_view_feedback")],
+        [InlineKeyboardButton("🏠 Admin panel", callback_data="admin_panel")],
+    ]
+
+    await query.edit_message_text(text=text, parse_mode="HTML",
+                                  reply_markup=InlineKeyboardMarkup(keyboard))

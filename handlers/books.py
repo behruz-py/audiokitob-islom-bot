@@ -1,54 +1,90 @@
-import json
+"""
+handlers/books.py
+=================
+Maqsad:
+- Qismlari bo'lmagan kitoblar ham ro'yxatda ko'rinsin
+- Kitob bosilganda qismlar bo'lmasa, foydalanuvchiga tushunarli xabar chiqsin
+- Har sahifada 🔙 va 🏠 tugmalar bo'lsin
+
+Izoh:
+- get_books() bevosita BOOKS jadvalidan o'qiydi (parts bilan JOIN qilinmaydi)
+- show_book_parts() bo'limida parts bo'lmasa, xabarnoma chiqadi
+"""
+
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
 from telegram.ext import ContextTypes
+from storage import get_books, get_parts, get_book, increment_book_view
 
 
-# Kitoblar menyusini chiqarish
+# 📚 Barcha kitoblar ro'yxati (qismlari bo'lmasa ham ko'rsatiladi)
 async def show_books(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
 
-    with open('data/books.json', 'r') as f:
-        data = json.load(f)
+    books = get_books()  # <- faqat books jadvalidan
+    if not books:
+        keyboard = [[
+            InlineKeyboardButton("🏠 Asosiy sahifa", callback_data="home"),
+        ]]
+        await query.edit_message_text(
+            "📚 Hozircha kitoblar mavjud emas.",
+            reply_markup=InlineKeyboardMarkup(keyboard)
+        )
+        return
 
-    books = data.get("kitoblar", [])
     keyboard = []
-
     row = []
-    for i, book in enumerate(books):
-        row.append(InlineKeyboardButton(book["nomi"], callback_data=f"book_{book['id']}"))
+    for b in books:
+        row.append(InlineKeyboardButton(b["nomi"], callback_data=f"book_{b['id']}"))
         if len(row) == 2:
             keyboard.append(row)
             row = []
     if row:
         keyboard.append(row)
 
-    keyboard.append([InlineKeyboardButton("🏠 Asosiy sahifa", callback_data="home")])
+    keyboard.append([
+        InlineKeyboardButton("🔙 Ortga", callback_data="home"),
+        InlineKeyboardButton("🏠 Asosiy sahifa", callback_data="home"),
+    ])
 
     await query.edit_message_text(
-        text="📚 Mavjud kitoblar ro'yxati:",
+        "📚 Mavjud kitoblar ro'yxati:",
         reply_markup=InlineKeyboardMarkup(keyboard)
     )
 
 
-# Qismlar menyusi
+# 🎧 Tanlangan kitob qismlari (bo'lmasa xabar chiqadi)
 async def show_book_parts(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
-    book_id = query.data.split("_")[1]
+    _, book_id = query.data.split("_", 1)
 
-    with open('data/books.json', 'r') as f:
-        data = json.load(f)
+    # Statistikani kitob ochilganda ham yuritamiz
+    book = get_book(book_id)
+    if book:
+        increment_book_view(book["nomi"])
 
-    selected_book = next((b for b in data["kitoblar"] if b["id"] == book_id), None)
-    if not selected_book:
-        await query.edit_message_text("Kitob topilmadi.")
+    parts = get_parts(book_id)
+
+    # Qismlar yo'q bo'lsa — foydalanuvchiga xabar
+    if not parts:
+        keyboard = [
+            [
+                InlineKeyboardButton("🔙 Ortga", callback_data="books"),
+                InlineKeyboardButton("🏠 Asosiy sahifa", callback_data="home"),
+            ]
+        ]
+        await query.edit_message_text(
+            "ℹ️ Bu kitob uchun hozircha qismlar yuklanmagan.\n"
+            "Yaqinda qo‘shiladi.",
+            reply_markup=InlineKeyboardMarkup(keyboard)
+        )
         return
 
+    # Qismlar mavjud — menyuni chiqaramiz
     keyboard = []
-    parts = selected_book.get("qismlar", [])
     row = []
-    for i, part in enumerate(parts):
-        row.append(InlineKeyboardButton(part["nomi"], callback_data=f"part_{book_id}_{i}"))
+    for i, p in enumerate(parts):
+        row.append(InlineKeyboardButton(p["nomi"], callback_data=f"part_{book_id}_{i}"))
         if len(row) == 2:
             keyboard.append(row)
             row = []
@@ -57,57 +93,45 @@ async def show_book_parts(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     keyboard.append([
         InlineKeyboardButton("🔙 Ortga", callback_data="books"),
-        InlineKeyboardButton("🏠 Asosiy sahifa", callback_data="home")
+        InlineKeyboardButton("🏠 Asosiy sahifa", callback_data="home"),
     ])
 
     await query.edit_message_text(
-        text=f"🎧 \"{selected_book['nomi']}\" kitobining qismlari:",
+        f"🎧 Qismlar ro‘yxati:",
         reply_markup=InlineKeyboardMarkup(keyboard)
     )
 
-    # Statistikaga yozib borish
-    views_path = 'data/book_views.json'
-    try:
-        with open(views_path, 'r') as f:
-            stats = json.load(f)
-    except:
-        stats = {}
 
-    stats[selected_book['nomi']] = stats.get(selected_book['nomi'], 0) + 1
-
-    with open(views_path, 'w') as f:
-        json.dump(stats, f, indent=4)
-
-
-# Qismni yuborish
+# ⬇️ Qismni yuborish
 async def send_audio_part(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     _, book_id, part_index = query.data.split("_")
     part_index = int(part_index)
 
-    with open('data/books.json', 'r') as f:
-        data = json.load(f)
-
-    selected_book = next((b for b in data["kitoblar"] if b["id"] == book_id), None)
-    if not selected_book:
-        await query.edit_message_text("Kitob topilmadi.")
+    parts = get_parts(book_id)
+    if not parts or part_index < 0 or part_index >= len(parts):
+        await query.edit_message_text(
+            "❌ Qism topilmadi yoki hali qo‘shilmagan.",
+            reply_markup=InlineKeyboardMarkup([
+                [
+                    InlineKeyboardButton("🔙 Ortga", callback_data=f"book_{book_id}"),
+                    InlineKeyboardButton("🏠 Asosiy sahifa", callback_data="home"),
+                ]
+            ])
+        )
         return
 
-    part = selected_book["qismlar"][part_index]
-
+    part = parts[part_index]
     await query.message.reply_audio(
         audio=part["audio_url"],
-        caption=f"🎧 {selected_book['nomi']} — {part['nomi']}"
+        caption=f"{part['nomi']}"
     )
 
-    keyboard = [
-        [
-            InlineKeyboardButton("🔙 Ortga", callback_data=f"book_{book_id}"),
-            InlineKeyboardButton("🏠 Asosiy sahifa", callback_data="home")
-        ]
-    ]
-
+    keyboard = [[
+        InlineKeyboardButton("🔙 Ortga", callback_data=f"book_{book_id}"),
+        InlineKeyboardButton("🏠 Asosiy sahifa", callback_data="home"),
+    ]]
     await query.message.reply_text(
-        text="⬆️ Yana boshqa qismlarni tanlashingiz mumkin:",
+        "⬆️ Yana boshqa qismlarni tanlashingiz mumkin:",
         reply_markup=InlineKeyboardMarkup(keyboard)
     )

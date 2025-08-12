@@ -92,7 +92,7 @@ async def admin_contact(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
     keyboard = [[InlineKeyboardButton("🏠 Asosiy menyu", callback_data="home")]]
-    await query.edit_message_text("👤 Murojaat uchun: @huda_murojaat_bot\n\n",
+    await query.edit_message_text("👤 Murojaat uchun: @huda_murojaat_bot\n\n👩🏻‍💻Texnik yordam uchun: @uygun_oglu",
                                   reply_markup=InlineKeyboardMarkup(keyboard))
 
 
