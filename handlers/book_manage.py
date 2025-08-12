@@ -412,7 +412,7 @@ async def admin_list_books(update: Update, context: ContextTypes.DEFAULT_TYPE):
     keyboard.append([InlineKeyboardButton("🔙 Ortga", callback_data="admin_panel")])
 
     await query.edit_message_text(
-        "🗑 Qaysi kitobni o‘chirmoqchisiz?",
+        "🗑 Mavjud kitoblar ro'yxati:",
         reply_markup=InlineKeyboardMarkup(keyboard)
     )
     return ASK_BOOK_DELETE
