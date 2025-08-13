@@ -1,12 +1,3 @@
-"""
-utils.py
-========
-Changelog:
-- (Yangi) is_admin(user_id): .env (ADMINS) va DB (storage.get_admins) ni birlashtirib tekshiradi
-- load_admins/save_admins saqlanib qoldi (admin_manage.py mosligi uchun)
-- BACK_HOME_KB o'zgarishsiz
-"""
-
 from telegram import InlineKeyboardMarkup, InlineKeyboardButton
 from storage import get_admins, add_admin, delete_admin
 from config import ADMINS as ENV_ADMINS

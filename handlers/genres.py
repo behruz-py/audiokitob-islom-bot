@@ -1,11 +1,3 @@
-"""
-handlers/genres.py
-==================
-Foydalanuvchi: Janrlar ro'yxati → 2 ustun, janr ichidagi kitoblar → 2 ustun
-Admin: Janrlarni boshqarish (qo'shish/o'chirish) menyulari → 2 ustun
-Har ekranda 🔙 Ortga / 🏠 Asosiy tugmalar mavjud.
-"""
-
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
 from telegram.ext import ContextTypes, ConversationHandler, MessageHandler, CallbackQueryHandler, filters
 from storage import get_genres, add_genre, delete_genre, get_books_by_genre

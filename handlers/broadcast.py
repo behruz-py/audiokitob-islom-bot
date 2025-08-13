@@ -1,10 +1,3 @@
-"""
-handlers/broadcast.py
-=====================
-Changelog:
-- Users.json o'rniga storage.get_users()
-"""
-
 import asyncio
 from telegram import Update, InlineKeyboardMarkup, InlineKeyboardButton
 from telegram.ext import ContextTypes, ConversationHandler
@@ -12,6 +5,7 @@ from storage import get_users
 
 ASK_BROADCAST_MESSAGE = 100
 CONFIRM_BROADCAST = 101
+
 
 async def ask_broadcast_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
@@ -23,6 +17,7 @@ async def ask_broadcast_message(update: Update, context: ContextTypes.DEFAULT_TY
     await query.edit_message_text("✍️ Yubormoqchi bo‘lgan xabaringizni (matn yoki media) kiriting:",
                                   reply_markup=InlineKeyboardMarkup(keyboard))
     return ASK_BROADCAST_MESSAGE
+
 
 async def handle_broadcast(update: Update, context: ContextTypes.DEFAULT_TYPE):
     message = update.message
@@ -59,6 +54,7 @@ async def handle_broadcast(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return ASK_BROADCAST_MESSAGE
     return CONFIRM_BROADCAST
 
+
 async def confirm_broadcast(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
@@ -68,16 +64,25 @@ async def confirm_broadcast(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return ConversationHandler.END
 
     user_ids = [u["id"] for u in get_users()]
-    success = 0; fail = 0
+    success = 0;
+    fail = 0
 
     for uid in user_ids:
         try:
-            if message.text: await context.bot.send_message(chat_id=uid, text=message.text)
-            elif message.photo: await context.bot.send_photo(chat_id=uid, photo=message.photo[-1].file_id, caption=message.caption or "")
-            elif message.document: await context.bot.send_document(chat_id=uid, document=message.document.file_id, caption=message.caption or "")
-            elif message.audio: await context.bot.send_audio(chat_id=uid, audio=message.audio.file_id, caption=message.caption or "")
-            elif message.voice: await context.bot.send_voice(chat_id=uid, voice=message.voice.file_id, caption=message.caption or "")
-            elif message.video: await context.bot.send_video(chat_id=uid, video=message.video.file_id, caption=message.caption or "")
+            if message.text:
+                await context.bot.send_message(chat_id=uid, text=message.text)
+            elif message.photo:
+                await context.bot.send_photo(chat_id=uid, photo=message.photo[-1].file_id,
+                                             caption=message.caption or "")
+            elif message.document:
+                await context.bot.send_document(chat_id=uid, document=message.document.file_id,
+                                                caption=message.caption or "")
+            elif message.audio:
+                await context.bot.send_audio(chat_id=uid, audio=message.audio.file_id, caption=message.caption or "")
+            elif message.voice:
+                await context.bot.send_voice(chat_id=uid, voice=message.voice.file_id, caption=message.caption or "")
+            elif message.video:
+                await context.bot.send_video(chat_id=uid, video=message.video.file_id, caption=message.caption or "")
             success += 1
         except Exception:
             fail += 1
@@ -94,6 +99,7 @@ async def confirm_broadcast(update: Update, context: ContextTypes.DEFAULT_TYPE):
     except:
         await query.message.reply_text(response_text, reply_markup=InlineKeyboardMarkup(keyboard))
     return ConversationHandler.END
+
 
 async def cancel_broadcast(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query

@@ -18,6 +18,7 @@ from storage import get_books, get_book, update_book_title
 RENAME_SELECT_BOOK = 820
 RENAME_ASK_TITLE = 821
 
+
 # --- Step 1: Kitob tanlash ---
 async def start_rename_book(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query

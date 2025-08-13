@@ -1,16 +1,3 @@
-"""
-handlers/books.py
-=================
-Maqsad:
-- Qismlari bo'lmagan kitoblar ham ro'yxatda ko'rinsin
-- Kitob bosilganda qismlar bo'lmasa, foydalanuvchiga tushunarli xabar chiqsin
-- Har sahifada 🔙 va 🏠 tugmalar bo'lsin
-
-Izoh:
-- get_books() bevosita BOOKS jadvalidan o'qiydi (parts bilan JOIN qilinmaydi)
-- show_book_parts() bo'limida parts bo'lmasa, xabarnoma chiqadi
-"""
-
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
 from telegram.ext import ContextTypes
 from storage import get_books, get_parts, get_book, increment_book_view

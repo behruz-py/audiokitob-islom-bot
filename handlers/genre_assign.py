@@ -19,6 +19,7 @@ from storage import get_books, get_genres, get_genres_for_book, set_book_genres
 SELECT_BOOK_FOR_ASSIGN = 700
 TOGGLE_GENRES_FOR_BOOK = 701
 
+
 # --- Step 1: Kitob tanlash ---
 async def start_assign_genres(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
@@ -131,7 +132,8 @@ async def save_book_genres(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     if not book_id:
         await query.edit_message_text("❌ Xatolik: kitob aniqlanmadi.",
-                                      reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("🏠 Admin panel", callback_data="admin_panel")]]))
+                                      reply_markup=InlineKeyboardMarkup(
+                                          [[InlineKeyboardButton("🏠 Admin panel", callback_data="admin_panel")]]))
         return ConversationHandler.END
 
     set_book_genres(book_id, list(selected))

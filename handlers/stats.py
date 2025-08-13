@@ -1,10 +1,4 @@
-"""
-handlers/stats.py
-=================
-Changelog:
-- (Clarify) Xabar matni biroz yaxshilandi
-- (Asosiy) get_users() va get_book_views() DBdan o'qiladi (oldingi kabi)
-"""
+
 
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
 from telegram.ext import ContextTypes

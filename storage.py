@@ -1,299 +1,281 @@
-# storage.py  — PostgreSQL versiya (psycopg3 + pool)
-# ENV:
-#   DATABASE_URL = postgresql://USER:PASSWORD@HOST:PORT/DBNAME   (Railway -> Connect bo‘limidan oling)
-#
-# Izoh:
-# - API SQLite dagidek qoldirildi (add_book, get_books, get_parts, ...).
-# - dict_row orqali satrlar dict ko‘rinishida qaytadi.
-# - ON CONFLICT ... DO NOTHING/UPDATE lar ishlatilgan.
+"""
+storage.py
+==========
+Changelog:
+- (Yangi) deduplicate_feedback(): takror fikrlarni olib tashlaydi (oxirgisini qoldirib)
+- (Yangi) add_feedback() endi 24 soat ichida bir xil (id+text) bo‘lsa, qayta saqlamaydi
+- (Yangi) idx_feedback_user_text indeksi (tezroq ishlashi uchun)
+"""
 
-import os
+import sqlite3
 from contextlib import contextmanager
+from pathlib import Path
+from datetime import datetime, timedelta
 
-import psycopg
-from psycopg.rows import dict_row
-from psycopg_pool import ConnectionPool
+DB_PATH = Path("data/app.db")
+DB_PATH.parent.mkdir(parents=True, exist_ok=True)
 
-DATABASE_URL = os.getenv("DATABASE_URL")
-if not DATABASE_URL:
-    raise RuntimeError("DATABASE_URL env topilmadi. Railway Postgresdan URL qo‘ying.")
-
-pool = ConnectionPool(
-    conninfo=DATABASE_URL,
-    kwargs={"row_factory": dict_row},
-    min_size=1,
-    max_size=5,
-    open=False,
-)
-pool.open()
 
 @contextmanager
 def get_conn():
-    with pool.connection() as conn:
-        with conn.cursor() as cur:
-            yield conn, cur
+    conn = sqlite3.connect(DB_PATH)
+    conn.execute("PRAGMA foreign_keys = ON;")
+    conn.execute("PRAGMA journal_mode = WAL;")
+    conn.row_factory = sqlite3.Row
+    try:
+        yield conn
+        conn.commit()
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        conn.close()
+
 
 def init_db():
-    with get_conn() as (conn, cur):
-        cur.execute("""
+    with get_conn() as conn:
+        conn.executescript("""
         CREATE TABLE IF NOT EXISTS books (
             id TEXT PRIMARY KEY,
             nomi TEXT NOT NULL
         );
         CREATE TABLE IF NOT EXISTS parts (
-            id SERIAL PRIMARY KEY,
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
             book_id TEXT NOT NULL REFERENCES books(id) ON DELETE CASCADE,
             nomi TEXT NOT NULL,
             audio_url TEXT NOT NULL
         );
         CREATE TABLE IF NOT EXISTS genres (
-            id SERIAL PRIMARY KEY,
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
             nomi TEXT UNIQUE NOT NULL
         );
         CREATE TABLE IF NOT EXISTS book_genres (
             book_id TEXT NOT NULL REFERENCES books(id) ON DELETE CASCADE,
-            genre_id INT NOT NULL REFERENCES genres(id) ON DELETE CASCADE,
+            genre_id INTEGER NOT NULL REFERENCES genres(id) ON DELETE CASCADE,
             PRIMARY KEY (book_id, genre_id)
         );
         CREATE TABLE IF NOT EXISTS users (
-            id BIGINT PRIMARY KEY,
+            id INTEGER PRIMARY KEY,
             name TEXT
         );
         CREATE TABLE IF NOT EXISTS admins (
-            id BIGINT PRIMARY KEY,
+            id INTEGER PRIMARY KEY,
             name TEXT
         );
         CREATE TABLE IF NOT EXISTS feedback (
-            id BIGINT,          -- user_id
+            id INTEGER,              -- user_id
             name TEXT,
             username TEXT,
             text TEXT,
-            created_at TIMESTAMPTZ DEFAULT NOW()
+            created_at TEXT          -- isoformat
         );
         CREATE TABLE IF NOT EXISTS book_views (
             book_name TEXT PRIMARY KEY,
-            count INT NOT NULL DEFAULT 0
+            count INTEGER NOT NULL DEFAULT 0
         );
 
         CREATE INDEX IF NOT EXISTS idx_parts_book_id ON parts(book_id);
         CREATE INDEX IF NOT EXISTS idx_book_genres_genre ON book_genres(genre_id);
         CREATE INDEX IF NOT EXISTS idx_feedback_user_text ON feedback(id, text);
         """)
-        conn.commit()
 
-# =============== Books ===============
+# =====================
+# 📚 Books
+# =====================
 
 def get_next_book_id() -> str:
-    with get_conn() as (conn, cur):
-        cur.execute("SELECT COALESCE(MAX(id::int), 0) AS m FROM books;")
-        mx = cur.fetchone()["m"]
+    with get_conn() as conn:
+        row = conn.execute("SELECT MAX(CAST(id AS INTEGER)) AS m FROM books").fetchone()
+        mx = row["m"] if row and row["m"] is not None else 0
         return str(int(mx) + 1)
 
 def add_book(book_id: str, nomi: str):
-    with get_conn() as (conn, cur):
-        cur.execute("INSERT INTO books (id, nomi) VALUES (%s, %s) ON CONFLICT (id) DO NOTHING;", (book_id, nomi))
-        conn.commit()
+    with get_conn() as conn:
+        conn.execute("INSERT INTO books (id, nomi) VALUES (?, ?)", (book_id, nomi))
 
 def get_book(book_id: str):
-    with get_conn() as (conn, cur):
-        cur.execute("SELECT * FROM books WHERE id = %s;", (book_id,))
-        return cur.fetchone()
+    with get_conn() as conn:
+        row = conn.execute("SELECT * FROM books WHERE id = ?", (book_id,)).fetchone()
+        return dict(row) if row else None
 
 def get_book_by_title(title: str):
-    with get_conn() as (conn, cur):
-        cur.execute("SELECT * FROM books WHERE nomi = %s;", (title,))
-        return cur.fetchone()
+    with get_conn() as conn:
+        row = conn.execute("SELECT * FROM books WHERE nomi = ?", (title,)).fetchone()
+        return dict(row) if row else None
 
 def get_books():
-    with get_conn() as (conn, cur):
-        cur.execute("SELECT * FROM books ORDER BY id::int;")
-        return cur.fetchall()
+    with get_conn() as conn:
+        return [dict(r) for r in conn.execute("SELECT * FROM books ORDER BY CAST(id AS INTEGER)").fetchall()]
 
 def delete_book(book_id: str):
-    with get_conn() as (conn, cur):
-        cur.execute("DELETE FROM books WHERE id = %s;", (book_id,))
-        conn.commit()
+    with get_conn() as conn:
+        conn.execute("DELETE FROM books WHERE id = ?", (book_id,))
 
 def update_book_title(book_id: str, new_title: str):
-    with get_conn() as (conn, cur):
-        cur.execute("UPDATE books SET nomi = %s WHERE id = %s;", (new_title, book_id))
-        conn.commit()
+    with get_conn() as conn:
+        conn.execute("UPDATE books SET nomi = ? WHERE id = ?", (new_title, book_id))
 
-# =============== Parts ===============
+# =====================
+# 🎧 Parts
+# =====================
 
 def add_part(book_id: str, nomi: str, audio_url: str):
-    with get_conn() as (conn, cur):
-        cur.execute(
-            "INSERT INTO parts (book_id, nomi, audio_url) VALUES (%s, %s, %s);",
-            (book_id, nomi, audio_url)
-        )
-        conn.commit()
+    with get_conn() as conn:
+        conn.execute("INSERT INTO parts (book_id, nomi, audio_url) VALUES (?, ?, ?)", (book_id, nomi, audio_url))
 
 def get_parts(book_id: str):
-    with get_conn() as (conn, cur):
-        cur.execute("SELECT * FROM parts WHERE book_id = %s ORDER BY id;", (book_id,))
-        return cur.fetchall()
+    with get_conn() as conn:
+        return [dict(r) for r in conn.execute(
+            "SELECT * FROM parts WHERE book_id = ? ORDER BY id", (book_id,)
+        ).fetchall()]
 
 def delete_part_by_index(book_id: str, index: int):
-    with get_conn() as (conn, cur):
-        # OFFSET bo‘yicha tanlab, keyin o‘chiramiz
-        cur.execute(
-            "SELECT id FROM parts WHERE book_id = %s ORDER BY id LIMIT 1 OFFSET %s;",
-            (book_id, index)
-        )
-        row = cur.fetchone()
+    with get_conn() as conn:
+        row = conn.execute("SELECT id FROM parts WHERE book_id = ? ORDER BY id LIMIT 1 OFFSET ?",
+                           (book_id, index)).fetchone()
         if row:
-            cur.execute("DELETE FROM parts WHERE id = %s;", (row["id"],))
-            conn.commit()
+            conn.execute("DELETE FROM parts WHERE id = ?", (row["id"],))
 
-# =============== Genres ===============
+# =====================
+# 🏷 Genres
+# =====================
 
 def add_genre(nomi: str):
-    with get_conn() as (conn, cur):
-        cur.execute("INSERT INTO genres (nomi) VALUES (%s) ON CONFLICT (nomi) DO NOTHING;", (nomi,))
-        conn.commit()
+    with get_conn() as conn:
+        conn.execute("INSERT OR IGNORE INTO genres (nomi) VALUES (?)", (nomi,))
 
 def get_genres():
-    with get_conn() as (conn, cur):
-        cur.execute("SELECT * FROM genres ORDER BY nomi;")
-        return cur.fetchall()
+    with get_conn() as conn:
+        return [dict(r) for r in conn.execute("SELECT * FROM genres ORDER BY nomi").fetchall()]
 
 def delete_genre(genre_id: int):
-    with get_conn() as (conn, cur):
-        cur.execute("DELETE FROM genres WHERE id = %s;", (genre_id,))
-        conn.commit()
+    with get_conn() as conn:
+        conn.execute("DELETE FROM genres WHERE id = ?", (genre_id,))
 
 def link_book_genre(book_id: str, genre_id: int):
-    with get_conn() as (conn, cur):
-        cur.execute("""
-            INSERT INTO book_genres (book_id, genre_id) VALUES (%s, %s)
-            ON CONFLICT (book_id, genre_id) DO NOTHING;
-        """, (book_id, genre_id))
-        conn.commit()
+    with get_conn() as conn:
+        conn.execute("INSERT OR IGNORE INTO book_genres (book_id, genre_id) VALUES (?, ?)", (book_id, genre_id))
 
 def clear_book_genres(book_id: str):
-    with get_conn() as (conn, cur):
-        cur.execute("DELETE FROM book_genres WHERE book_id = %s;", (book_id,))
-        conn.commit()
+    with get_conn() as conn:
+        conn.execute("DELETE FROM book_genres WHERE book_id = ?", (book_id,))
 
 def get_genres_for_book(book_id: str):
-    with get_conn() as (conn, cur):
-        cur.execute("""
+    with get_conn() as conn:
+        return [dict(r) for r in conn.execute("""
             SELECT g.* FROM genres g
             JOIN book_genres bg ON g.id = bg.genre_id
-            WHERE bg.book_id = %s
-            ORDER BY g.nomi;
-        """, (book_id,))
-        return cur.fetchall()
+            WHERE bg.book_id = ?
+            ORDER BY g.nomi
+        """, (book_id,)).fetchall()]
 
 def set_book_genres(book_id: str, genre_ids: list[int]):
-    with get_conn() as (conn, cur):
-        cur.execute("DELETE FROM book_genres WHERE book_id = %s;", (book_id,))
-        if genre_ids:
-            cur.executemany(
-                "INSERT INTO book_genres (book_id, genre_id) VALUES (%s, %s) ON CONFLICT DO NOTHING;",
-                [(book_id, gid) for gid in genre_ids]
-            )
-        conn.commit()
+    with get_conn() as conn:
+        conn.execute("DELETE FROM book_genres WHERE book_id = ?", (book_id,))
+        conn.executemany("INSERT OR IGNORE INTO book_genres (book_id, genre_id) VALUES (?, ?)",
+                         [(book_id, gid) for gid in genre_ids])
 
 def get_books_by_genre(genre_id: int):
-    with get_conn() as (conn, cur):
-        cur.execute("""
+    with get_conn() as conn:
+        return [dict(r) for r in conn.execute("""
             SELECT b.* FROM books b
             JOIN book_genres bg ON b.id = bg.book_id
-            WHERE bg.genre_id = %s
-            ORDER BY b.id::int;
-        """, (genre_id,))
-        return cur.fetchall()
+            WHERE bg.genre_id = ?
+            ORDER BY CAST(b.id AS INTEGER)
+        """, (genre_id,)).fetchall()]
 
-# =============== Users/Admins ===============
+# =====================
+# 👥 User/Admin
+# =====================
 
 def add_user(user_id: int, name: str):
-    with get_conn() as (conn, cur):
-        cur.execute("INSERT INTO users (id, name) VALUES (%s, %s) ON CONFLICT (id) DO NOTHING;", (user_id, name))
-        conn.commit()
+    with get_conn() as conn:
+        conn.execute("INSERT OR IGNORE INTO users (id, name) VALUES (?, ?)", (user_id, name))
 
 def get_users():
-    with get_conn() as (conn, cur):
-        cur.execute("SELECT * FROM users;")
-        return cur.fetchall()
+    with get_conn() as conn:
+        return [dict(r) for r in conn.execute("SELECT * FROM users").fetchall()]
 
 def add_admin(admin_id: int, name: str):
-    with get_conn() as (conn, cur):
-        cur.execute("INSERT INTO admins (id, name) VALUES (%s, %s) ON CONFLICT (id) DO NOTHING;", (admin_id, name))
-        conn.commit()
+    with get_conn() as conn:
+        conn.execute("INSERT OR IGNORE INTO admins (id, name) VALUES (?, ?)", (admin_id, name))
 
 def get_admins():
-    with get_conn() as (conn, cur):
-        cur.execute("SELECT * FROM admins;")
-        return cur.fetchall()
+    with get_conn() as conn:
+        return [dict(r) for r in conn.execute("SELECT * FROM admins").fetchall()]
 
 def delete_admin(admin_id: int):
-    with get_conn() as (conn, cur):
-        cur.execute("DELETE FROM admins WHERE id = %s;", (admin_id,))
-        conn.commit()
+    with get_conn() as conn:
+        conn.execute("DELETE FROM admins WHERE id = ?", (admin_id,))
 
-# =============== Feedback ===============
+# =====================
+# 💬 Feedback
+# =====================
 
 def add_feedback(user_id: int, name: str, username: str, text: str):
+    """
+    Bir xil matnni (id+text) 24 soat ichida qayta saqlamaydi.
+    """
     text_norm = (text or "").strip()
     if not text_norm:
         return
-    with get_conn() as (conn, cur):
-        # oxirgi 24 soat ichida xuddi shu user xuddi shu matndan yuborganmi?
-        cur.execute("""
-            SELECT 1 FROM feedback
-            WHERE id = %s AND TRIM(text) = TRIM(%s)
-              AND created_at >= NOW() - INTERVAL '1 day'
-            LIMIT 1;
-        """, (user_id, text_norm))
-        if cur.fetchone():
-            return
-        cur.execute(
-            "INSERT INTO feedback (id, name, username, text) VALUES (%s, %s, %s, %s);",
-            (user_id, name, username, text_norm)
+    with get_conn() as conn:
+        # oxirgi 24 soat ichida shu foydalanuvchi aynan shu matndan yuborganmi?
+        row = conn.execute("""
+            SELECT 1
+            FROM feedback
+            WHERE id = ? AND TRIM(text) = TRIM(?)
+              AND datetime(created_at) >= datetime('now', '-1 day')
+            LIMIT 1
+        """, (user_id, text_norm)).fetchone()
+        if row:
+            return  # duplicate in 24h -> saqlamaymiz
+
+        conn.execute(
+            "INSERT INTO feedback (id, name, username, text, created_at) VALUES (?, ?, ?, ?, ?)",
+            (user_id, name, username, text_norm, datetime.now().isoformat())
         )
-        conn.commit()
 
 def get_feedback(limit: int = 10):
-    with get_conn() as (conn, cur):
-        cur.execute("""
-            SELECT * FROM feedback
-            ORDER BY created_at DESC, ctid DESC
-            LIMIT %s;
-        """, (limit,))
-        return cur.fetchall()
+    with get_conn() as conn:
+        return [dict(r) for r in conn.execute(
+            "SELECT * FROM feedback ORDER BY datetime(created_at) DESC, rowid DESC LIMIT ?", (limit,)
+        ).fetchall()]
 
 def deduplicate_feedback() -> int:
-    with get_conn() as (conn, cur):
-        cur.execute("""
+    """
+    Takror (id + TRIM(text)) fikrlarni o'chiradi, eng oxirgisini qoldiradi.
+    Qaytaradi: o'chirilgan satrlar soni.
+    """
+    with get_conn() as conn:
+        # SQLite 3.25+ da window functions bor
+        conn.execute("""
             WITH ranked AS (
-                SELECT ctid, id, TRIM(text) AS ttext, created_at,
+                SELECT rowid, id, TRIM(text) AS ttext, created_at,
                        ROW_NUMBER() OVER (PARTITION BY id, TRIM(text)
-                                          ORDER BY created_at DESC, ctid DESC) AS rn
+                                          ORDER BY datetime(created_at) DESC, rowid DESC) AS rn
                 FROM feedback
             )
             DELETE FROM feedback
-            WHERE ctid IN (SELECT ctid FROM ranked WHERE rn > 1);
+            WHERE rowid IN (SELECT rowid FROM ranked WHERE rn > 1);
         """)
-        # affected rows:
-        cur.execute("SELECT 1;")
-        conn.commit()
-        # ps: psycopg3 da rowcount so‘nggi statement bo‘yicha bo‘ladi, bu yerda aniq son talab bo‘lmasa ham,
-        # admin xabari uchun qaytarmasak ham bo‘ladi. Istasangiz RETURNING bilan qaytarish mumkin.
-        return 0
+        # nechta qator o'chganini aniqlash uchun changes() dan foydalanamiz
+        n = conn.execute("SELECT changes() AS n").fetchone()["n"]
+        return int(n)
 
-# =============== Book views ===============
+# =====================
+# 📊 Book views
+# =====================
 
 def increment_book_view(book_name: str):
-    with get_conn() as (conn, cur):
-        cur.execute("""
-            INSERT INTO book_views (book_name, count) VALUES (%s, 1)
-            ON CONFLICT (book_name) DO UPDATE SET count = book_views.count + 1;
+    with get_conn() as conn:
+        conn.execute("""
+            INSERT INTO book_views (book_name, count) VALUES (?, 1)
+            ON CONFLICT(book_name) DO UPDATE SET count = count + 1
         """, (book_name,))
-        conn.commit()
 
 def get_book_views():
-    with get_conn() as (conn, cur):
-        cur.execute("SELECT * FROM book_views ORDER BY count DESC;")
-        return cur.fetchall()
+    with get_conn() as conn:
+        return [dict(r) for r in conn.execute(
+            "SELECT * FROM book_views ORDER BY count DESC"
+        ).fetchall()]

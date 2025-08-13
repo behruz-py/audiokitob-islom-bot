@@ -1,7 +1,12 @@
+# Python
+__pycache__/
+*.pyc
+
+# Virtual env / secrets
+.venv/
 .env
+
+# Data (runtime)
+data/backups/
+*.bak
 data/*.db
-data/*.sqlite
-*.db
-*.sqlite
-*.db-wal
-*.db-shm

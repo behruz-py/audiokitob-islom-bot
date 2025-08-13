@@ -24,9 +24,9 @@ async def admin_panel(update: Update, context: ContextTypes.DEFAULT_TYPE):
         [InlineKeyboardButton("📥 Yangi kitob qo‘shish", callback_data="admin_add_book")],
         [InlineKeyboardButton("➕ Yangi qism qo‘shish", callback_data="admin_add_part")],
         [InlineKeyboardButton("🗑️ Kitobni o‘chirish", callback_data="admin_delete_book")],
-        [InlineKeyboardButton("🗑 Qismni o‘chirish", callback_data="admin_delete_part")],
+        [InlineKeyboardButton("➖Qismni o‘chirish", callback_data="admin_delete_part")],
         [InlineKeyboardButton("🏷 Janrlarni boshqarish", callback_data="admin_manage_genres")],
-        [InlineKeyboardButton("🏷 Kitobga janr belgilash", callback_data="admin_assign_genres")],
+        [InlineKeyboardButton("✒️ Kitobga janr belgilash", callback_data="admin_assign_genres")],
         [InlineKeyboardButton("✏️ Kitob nomini tahrirlash", callback_data="admin_rename_book")],  # <<< YANGI
         [InlineKeyboardButton("📚 Kitoblar ro‘yxati", callback_data="admin_list_books")],
         [InlineKeyboardButton("📬 Xabar yuborish", callback_data="admin_broadcast")],

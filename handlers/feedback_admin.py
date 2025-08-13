@@ -10,6 +10,7 @@ from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
 from telegram.ext import ContextTypes
 from storage import get_feedback, deduplicate_feedback
 
+
 async def show_last_feedbacks(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
@@ -37,6 +38,7 @@ async def show_last_feedbacks(update: Update, context: ContextTypes.DEFAULT_TYPE
         text=text, parse_mode="HTML",
         reply_markup=InlineKeyboardMarkup(keyboard)
     )
+
 
 # ♻️ Takrorlarni tozalash
 async def dedupe_feedback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):

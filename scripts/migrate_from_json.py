@@ -1,33 +1,8 @@
-"""
-scripts/migrate_from_json.py
-============================
-
-Changelog:
-- Yangi migratsiya skripti: JSON (data/*.json) ma'lumotlarini SQLite (data/app.db) ga ko'chiradi
-- JSON fayllarni data/backups/ ichiga sana-vaqtli nom bilan zaxiralaydi (rotatsiya yo'q — xohlasang keyin qo'shamiz)
-- Idempotent: bor bo'lsa tashlab ketadi, yo'q bo'lsa qo'shadi
-- Xatolar bo'lsa ham qolganlarini migratsiya qilishda davom etadi (yakunda hisobot chiqaradi)
-
-Fayllar:
-- data/books.json         -> books, parts
-- data/book_views.json    -> book_views
-- data/users.json         -> users
-- data/admins.json        -> admins
-- data/feedback.json      -> feedback
-
-Eslatma:
-- Janrlar JSON’da yo‘q, shuning uchun bu skript janrlarni ko‘chirmaydi (janrlar keyin admin paneldan yaratiladi).
-- Bot endi DB’dan ishlaydi; JSON faqat backup/eksport uchun qoladi.
-
-Ishga tushirish:
-    python scripts/migrate_from_json.py
-
-Qayta ishga tushirish xavfsiz: mavjud yozuvlar ustiga yozmaydi (PRIMARY KEY to‘siqlari tufayli).
-"""
 from __future__ import annotations
 
 from pathlib import Path
 import sys
+
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))  # project root ni import yo'liga qo'shish
 
 import json
@@ -56,6 +31,7 @@ from storage import (
     add_feedback,
     increment_book_view,
 )
+
 
 # ---------- Yordamchi funksiyalar ----------
 

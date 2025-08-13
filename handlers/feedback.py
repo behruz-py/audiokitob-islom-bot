@@ -1,16 +1,9 @@
-"""
-handlers/feedback.py
-====================
-Changelog:
-- JSON o'rniga DB (storage.add_feedback) dan foydalanadi
-- Oxirida doim 🔙 va 🏠 tugmalar
-"""
-
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ContextTypes, ConversationHandler
 from storage import add_feedback
 
 ASK_FEEDBACK = 1
+
 
 # 💬 Fikr olishni boshlash
 async def ask_feedback(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -32,6 +25,7 @@ async def ask_feedback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
     return ASK_FEEDBACK
 
+
 # ✅ Fikrni saqlash (DB)
 async def save_feedback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user = update.effective_user
@@ -52,6 +46,7 @@ async def save_feedback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         reply_markup=InlineKeyboardMarkup(keyboard)
     )
     return ConversationHandler.END
+
 
 # 🚫 Bekor qilish
 async def cancel_feedback(update: Update, context: ContextTypes.DEFAULT_TYPE):
