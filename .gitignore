@@ -1,12 +1,34 @@
-# Python
+# Python cache
 __pycache__/
 *.pyc
+*.pyo
+*.pyd
 
-# Virtual env / secrets
+# Virtual environment
 .venv/
+env/
+venv/
+
+# Environment variables
 .env
 
-# Data (runtime)
+# Backup files
 data/backups/
 *.bak
-data/*.db
+
+# Database files
+*.db
+*.sqlite3
+
+# OS / IDE files
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# Logs
+*.log
+
+# Optional: ignore user data JSON files
+# Agar users.json kabi runtime fayllarni ham saqlamaslikni istasang, quyidagini qo'sh:
+# data/*.json
