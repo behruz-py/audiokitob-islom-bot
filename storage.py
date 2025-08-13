@@ -1,12 +1,3 @@
-"""
-storage.py
-==========
-Changelog:
-- (Yangi) deduplicate_feedback(): takror fikrlarni olib tashlaydi (oxirgisini qoldirib)
-- (Yangi) add_feedback() endi 24 soat ichida bir xil (id+text) bo‘lsa, qayta saqlamaydi
-- (Yangi) idx_feedback_user_text indeksi (tezroq ishlashi uchun)
-"""
-
 import sqlite3
 from contextlib import contextmanager
 from pathlib import Path
