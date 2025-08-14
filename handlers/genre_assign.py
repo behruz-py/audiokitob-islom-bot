@@ -1,16 +1,3 @@
-"""
-handlers/genre_assign.py
-========================
-Mavjud kitoblarga janr belgilash/tahrirlash oqimi:
-
-Flow:
-- admin_assign_genres (tugma) -> kitob tanlash
-- kitob tanlangach -> janrlarni multi-select (✅/▫️) bilan belgilang
-- "💾 Saqlash" bosilganda set_book_genres(book_id, genre_ids) yoziladi
-
-Har ekranda 🔙 va 🏠 tugmalar bor (muzlab qolmaslik uchun).
-"""
-
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
 from telegram.ext import ContextTypes, ConversationHandler, CallbackQueryHandler
 from storage import get_books, get_genres, get_genres_for_book, set_book_genres

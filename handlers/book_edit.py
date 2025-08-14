@@ -1,16 +1,3 @@
-"""
-handlers/book_edit.py
-=====================
-Admin paneldan mavjud kitob nomini tahrirlash:
-
-Flow:
-- admin_rename_book -> kitob tanlash
-- kitob tanlangach -> yangi nomni yuborish
-- saqlash va Admin panelga qaytish
-
-Har ekranda 🔙 va 🏠 tugmalar bor.
-"""
-
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
 from telegram.ext import ContextTypes, ConversationHandler, MessageHandler, CallbackQueryHandler, filters
 from storage import get_books, get_book, update_book_title

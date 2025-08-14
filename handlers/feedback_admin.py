@@ -1,11 +1,3 @@
-"""
-handlers/feedback_admin.py
-==========================
-Changelog:
-- (Yangi) ♻️ Takrorlarni tozalash tugmasi
-- (Yangi) deduplicate_feedback() chaqirib, natijani ko'rsatadi
-"""
-
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
 from telegram.ext import ContextTypes
 from storage import get_feedback, deduplicate_feedback

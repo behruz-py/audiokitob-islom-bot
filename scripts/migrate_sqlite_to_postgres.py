@@ -259,7 +259,6 @@ def main():
             )
         print("✔ book_views migrated.")
 
-        # Fix SERIAL sequences after explicit id inserts
         fix_sequences(pconn)
 
         sc.close()

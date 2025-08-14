@@ -1,14 +1,3 @@
-"""
-handlers/book_manage.py
-=======================
-Changelog:
-- JSON o'rniga storage (SQLite)
-- Kitob qo'shish jarayoniga JANR tanlash bosqichi qo'shildi (multi-select)
-- O'chirishlar book_id bo'yicha ishlaydi (index emas)
-- Admin paneldagi "Kitoblar ro'yxati" va "Qism qo'shish uchun kitob tanlash" 2 ustunda ko'rinadi
-- Har ekranda 🔙 Ortga / 🏠 Asosiy
-"""
-
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ContextTypes, ConversationHandler
 import re

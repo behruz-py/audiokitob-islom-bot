@@ -32,7 +32,6 @@ def is_admin(user_id: int) -> bool:
     return int(user_id) in env_admins or int(user_id) in db_admins
 
 
-# Eski kod bilan moslik (admin_manage.py foydalanadi)
 def load_admins() -> dict:
     """
     admin_manage.py mosligi uchun: DB dagi adminlarni

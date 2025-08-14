@@ -19,7 +19,7 @@ BACKUP_DIR = DATA_DIR / "backups"
 DB_FILE = DATA_DIR / "app.db"
 
 # storage dagi CRUD funksiyalar
-# (storage.py fayli 1-qadamda qo'shilgan)
+
 from storage import (
     init_db,
     add_book,

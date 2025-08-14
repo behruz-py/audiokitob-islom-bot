@@ -1,8 +1,7 @@
-
-
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
 from telegram.ext import ContextTypes
 from storage import get_users, get_book_views, get_books
+
 
 async def show_stats_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
@@ -13,6 +12,7 @@ async def show_stats_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
         [InlineKeyboardButton("🏠 Asosiy menyu", callback_data="home")]
     ]
     await query.edit_message_text("📊 Statistika menyusi:", reply_markup=InlineKeyboardMarkup(keyboard))
+
 
 async def show_user_count(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
@@ -27,6 +27,7 @@ async def show_user_count(update: Update, context: ContextTypes.DEFAULT_TYPE):
         reply_markup=InlineKeyboardMarkup(keyboard),
         parse_mode="HTML"
     )
+
 
 async def show_book_stats(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query

@@ -1,6 +1,6 @@
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
 from telegram.ext import ContextTypes
-from utils import is_admin  # <<< qo'shildi
+from utils import is_admin
 
 
 async def back_to_home(update: Update, context: ContextTypes.DEFAULT_TYPE):
