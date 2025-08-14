@@ -143,13 +143,16 @@ def _bump_seq(conn: psycopg.Connection, table: str, col: str = "id"):
     - If empty:         setval(seq, 1, false)       -> nextval = 1
     """
     with conn.cursor() as cur:
-        cur.execute(f"SELECT MAX({col}) FROM {table};")
-        max_id = cur.fetchone()[0]
-        seq_sql = "SELECT pg_get_serial_sequence(%s, %s);"
-        cur.execute(seq_sql, (table, col))
-        seq = cur.fetchone()[0]
+        cur.execute(f"SELECT MAX({col}) AS max_id FROM {table};")
+        row = cur.fetchone()
+        max_id = row["max_id"] if isinstance(row, dict) else row[0]
+
+        cur.execute("SELECT pg_get_serial_sequence(%s, %s) AS seq_name;", (table, col))
+        row = cur.fetchone()
+        seq = row["seq_name"] if isinstance(row, dict) else row[0]
         if not seq:
-            return  # no serial sequence (e.g., not SERIAL/BIGSERIAL)
+            return  # no serial/bigserial sequence
+
         if max_id is None or int(max_id) < 1:
             # empty table -> start from 1 (uncalled)
             cur.execute("SELECT setval(%s, %s, %s);", (seq, 1, False))
