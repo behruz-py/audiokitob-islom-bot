@@ -72,7 +72,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if is_admin(user.id):
         keyboard.append([InlineKeyboardButton("🛠️ Admin panel", callback_data="admin_panel")])
 
-    text = (f"🖐Assalomu alaykum, {user.first_name}!\n\n"
+    text = (f"<b>🖐Assalomu alaykum, {user.first_name}</b>!\n\n"
             "📖 Bu bot orqali audiokitoblarimizni qulay tarzda tinglashingiz mumkin.\n\n🔈Sahifamiz: @audiokitoblar_islom\n\n\n"
             "👇🏻 Quyidagi menyulardan birini tanlang:")
 
