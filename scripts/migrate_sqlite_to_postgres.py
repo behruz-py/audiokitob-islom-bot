@@ -2,11 +2,9 @@
 One-time migration: copy data from local SQLite (data/app.db) to PostgreSQL (DATABASE_URL).
 
 How to run (Windows PowerShell):
-  1) Make sure requirements are installed:  pip install -r requirements.txt
-  2) Set env var from Railway Connect page (use single quotes, include sslmode=require):
-       $env:DATABASE_URL = 'postgresql://USER:PASSWORD@HOST:PORT/DB?sslmode=require'
-  3) Run the script from the project root:
-       python scripts/migrate_sqlite_to_postgres.py
+  1) pip install -r requirements.txt
+  2) $env:DATABASE_URL = 'postgresql://USER:PASSWORD@HOST:PORT/DB?sslmode=require'
+  3) python scripts/migrate_sqlite_to_postgres.py
 """
 
 import os
@@ -19,7 +17,6 @@ import psycopg
 from psycopg.rows import dict_row
 
 # --- Ensure project root is importable so we can import storage.init_db() ---
-# __file__ = .../scripts/migrate_sqlite_to_postgres.py
 ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
@@ -133,19 +130,38 @@ def try_parse_dt(value):
             return datetime.strptime(txt, fmt)
         except Exception:
             pass
-    # Last resort: Python 3.11+ tolerant ISO
     try:
         return datetime.fromisoformat(txt)
     except Exception:
         return None
 
 
-def fix_sequences(conn: psycopg.Connection):
-    """After inserting explicit IDs into SERIAL columns, bump sequences."""
+def _bump_seq(conn: psycopg.Connection, table: str, col: str = "id"):
+    """
+    Robust sequence bump:
+    - If table has rows: setval(seq, MAX(id), true)  -> nextval = MAX+1
+    - If empty:         setval(seq, 1, false)       -> nextval = 1
+    """
     with conn.cursor() as cur:
-        cur.execute("SELECT setval(pg_get_serial_sequence('parts','id'), COALESCE((SELECT MAX(id) FROM parts), 0));")
-        cur.execute("SELECT setval(pg_get_serial_sequence('genres','id'), COALESCE((SELECT MAX(id) FROM genres), 0));")
-    print("Sequences fixed for parts.id and genres.id.")
+        cur.execute(f"SELECT MAX({col}) FROM {table};")
+        max_id = cur.fetchone()[0]
+        seq_sql = "SELECT pg_get_serial_sequence(%s, %s);"
+        cur.execute(seq_sql, (table, col))
+        seq = cur.fetchone()[0]
+        if not seq:
+            return  # no serial sequence (e.g., not SERIAL/BIGSERIAL)
+        if max_id is None or int(max_id) < 1:
+            # empty table -> start from 1 (uncalled)
+            cur.execute("SELECT setval(%s, %s, %s);", (seq, 1, False))
+        else:
+            cur.execute("SELECT setval(%s, %s, %s);", (seq, int(max_id), True))
+
+
+def fix_sequences(conn: psycopg.Connection):
+    """Fix sequences for tables with SERIAL ids after explicit inserts."""
+    _bump_seq(conn, "parts", "id")
+    _bump_seq(conn, "genres", "id")
+    print("Sequences fixed (parts.id, genres.id).")
 
 
 def main():
