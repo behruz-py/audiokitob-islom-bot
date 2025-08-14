@@ -73,7 +73,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         keyboard.append([InlineKeyboardButton("🛠️ Admin panel", callback_data="admin_panel")])
 
     text = (f"<b>🖐Assalomu alaykum, {user.first_name}</b>!\n\n"
-            "📖 Bu bot orqali audiokitoblarimizni qulay tarzda tinglashingiz mumkin.\n\n🔈Sahifamiz: @audiokitoblar_islom\n\n\n"
+            "📖 Bu bot orqali audiokitoblarimizni qulay tarzda tinglashingiz mumkin.\n\n🔈<b>Sahifamiz:</b> @audiokitoblar_islom\n\n\n"
             "👇🏻 Quyidagi menyulardan birini tanlang:")
 
     if update.message:
@@ -86,7 +86,7 @@ async def admin_contact(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
     keyboard = [[InlineKeyboardButton("🏠 Asosiy menyu", callback_data="home")]]
-    await query.edit_message_text("👤 Murojaat: @huda_murojaat_bot\n",
+    await query.edit_message_text("👤 Murojaat uchun: @huda_murojaat_bot\n",
                                   reply_markup=InlineKeyboardMarkup(keyboard))
 
 
