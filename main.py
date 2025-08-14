@@ -77,9 +77,9 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "👇🏻 Quyidagi menyulardan birini tanlang:")
 
     if update.message:
-        await update.message.reply_text(text, reply_markup=InlineKeyboardMarkup(keyboard))
+        await update.message.reply_text(text, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="HTML")
     else:
-        await update.callback_query.edit_message_text(text, reply_markup=InlineKeyboardMarkup(keyboard))
+        await update.callback_query.edit_message_text(text, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="HTML")
 
 
 async def admin_contact(update: Update, context: ContextTypes.DEFAULT_TYPE):
