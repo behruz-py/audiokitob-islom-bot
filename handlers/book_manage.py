@@ -6,6 +6,7 @@ from storage import (
     get_books, add_book, get_parts, add_part, delete_part_by_index,
     delete_book, get_genres, set_book_genres, get_next_book_id
 )
+from utils import safe_edit_message
 
 TELEGRAM_LINK_PATTERN = re.compile(r"^https://t\.me/[\w\d_]+/\d+$")
 
@@ -29,9 +30,10 @@ async def ask_book_name(update: Update, context: ContextTypes.DEFAULT_TYPE):
         [InlineKeyboardButton("❌ Bekor qilish", callback_data="cancel_add_book")],
         [InlineKeyboardButton("🔙 Ortga", callback_data="admin_panel")],
     ]
-    await query.edit_message_text(
+    await safe_edit_message(
+        query.message,
         "📖 Yangi kitob nomini yuboring:",
-        reply_markup=InlineKeyboardMarkup(keyboard)
+        InlineKeyboardMarkup(keyboard)
     )
     return ADD_BOOK_NAME
 
@@ -59,9 +61,10 @@ async def receive_book_name(update: Update, context: ContextTypes.DEFAULT_TYPE):
     for g in genres:
         row.append(InlineKeyboardButton(f"▫️ {g['nomi']}", callback_data=f"toggle_genre_{g['id']}"))
         if len(row) == 2:
-            kb.append(row);
+            kb.append(row)
             row = []
-    if row: kb.append(row)
+    if row:
+        kb.append(row)
     kb.append([InlineKeyboardButton("✅ Tugatdim (janrlar)", callback_data="genres_done")])
     kb.append([InlineKeyboardButton("❌ Bekor qilish", callback_data="cancel_add_book")])
 
@@ -79,7 +82,7 @@ async def toggle_select_genre(update: Update, context: ContextTypes.DEFAULT_TYPE
     user_id = query.from_user.id
     data = TEMP_BOOK.get(user_id)
     if not data:
-        await query.edit_message_text("❌ Holat topilmadi.")
+        await safe_edit_message(query.message, "❌ Holat topilmadi.")
         return ConversationHandler.END
 
     gid = int(query.data.split("_")[2])
@@ -96,15 +99,17 @@ async def toggle_select_genre(update: Update, context: ContextTypes.DEFAULT_TYPE
         marker = "✅" if g["id"] in data["genres"] else "▫️"
         row.append(InlineKeyboardButton(f"{marker} {g['nomi']}", callback_data=f"toggle_genre_{g['id']}"))
         if len(row) == 2:
-            kb.append(row);
+            kb.append(row)
             row = []
-    if row: kb.append(row)
+    if row:
+        kb.append(row)
     kb.append([InlineKeyboardButton("✅ Tugatdim (janrlar)", callback_data="genres_done")])
     kb.append([InlineKeyboardButton("❌ Bekor qilish", callback_data="cancel_add_book")])
 
-    await query.edit_message_text(
+    await safe_edit_message(
+        query.message,
         "🏷 Tanlangan janrlar:",
-        reply_markup=InlineKeyboardMarkup(kb)
+        InlineKeyboardMarkup(kb)
     )
 
 
@@ -116,10 +121,11 @@ async def genres_done_then_parts(update: Update, context: ContextTypes.DEFAULT_T
         [InlineKeyboardButton("🔙 Ortga", callback_data="admin_add_book")],
         [InlineKeyboardButton("🏠 Asosiy menyu", callback_data="admin_panel")],
     ]
-    await query.edit_message_text(
+    await safe_edit_message(
+        query.message,
         "🎧 Endi qismlar havolasini yuboring (har birini alohida xabar bilan):\n<code>https://t.me/kanal/123</code>",
-        parse_mode="HTML",
-        reply_markup=InlineKeyboardMarkup(keyboard)
+        InlineKeyboardMarkup(keyboard),
+        parse_mode="HTML"
     )
     return ADD_BOOK_PARTS
 
@@ -170,9 +176,10 @@ async def finish_add_book(update: Update, context: ContextTypes.DEFAULT_TYPE):
     TEMP_BOOK.pop(user_id, None)  # tozalash
 
     keyboard = [[InlineKeyboardButton("🏠 Asosiy menyu", callback_data="admin_panel")]]
-    await query.edit_message_text(
+    await safe_edit_message(
+        query.message,
         "✅ Kitob saqlandi!",
-        reply_markup=InlineKeyboardMarkup(keyboard)
+        InlineKeyboardMarkup(keyboard)
     )
     return ConversationHandler.END
 
@@ -181,11 +188,10 @@ async def cancel_add_book(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
     TEMP_BOOK.pop(query.from_user.id, None)
-    await query.edit_message_text(
+    await safe_edit_message(
+        query.message,
         "❌ Kitob qo‘shish bekor qilindi.",
-        reply_markup=InlineKeyboardMarkup([
-            [InlineKeyboardButton("🏠 Asosiy menyu", callback_data="admin_panel")]
-        ])
+        InlineKeyboardMarkup([[InlineKeyboardButton("🏠 Asosiy menyu", callback_data="admin_panel")]])
     )
     return ConversationHandler.END
 
@@ -198,7 +204,7 @@ async def start_add_part(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await query.answer()
     books = get_books()
     if not books:
-        await query.edit_message_text("📚 Hech qanday kitob mavjud emas.")
+        await safe_edit_message(query.message, "📚 Hech qanday kitob mavjud emas.")
         return ConversationHandler.END
 
     # 2 ustunli klaviatura
@@ -214,9 +220,10 @@ async def start_add_part(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     keyboard.append([InlineKeyboardButton("🔙 Ortga", callback_data="admin_panel")])
 
-    await query.edit_message_text(
+    await safe_edit_message(
+        query.message,
         "➕ Qism qo‘shiladigan kitobni tanlang:",
-        reply_markup=InlineKeyboardMarkup(keyboard)
+        InlineKeyboardMarkup(keyboard)
     )
     return ADD_PART_SELECT_BOOK
 
@@ -230,10 +237,11 @@ async def select_book_for_part_add(update: Update, context: ContextTypes.DEFAULT
         [InlineKeyboardButton("🏁 Tugatish", callback_data="cancel_add_part")],
         [InlineKeyboardButton("🔙 Ortga", callback_data="admin_add_part")]
     ]
-    await query.edit_message_text(
+    await safe_edit_message(
+        query.message,
         "🎧 Qism havolasini yuboring:\n<code>https://t.me/kanal/123</code>",
-        parse_mode="HTML",
-        reply_markup=InlineKeyboardMarkup(keyboard)
+        InlineKeyboardMarkup(keyboard),
+        parse_mode="HTML"
     )
     return ADD_PART_URL
 
@@ -270,11 +278,10 @@ async def cancel_add_part(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
     TEMP_ADD_PART.pop(query.from_user.id, None)
-    await query.edit_message_text(
+    await safe_edit_message(
+        query.message,
         "✔️ Qism qo‘shish yakunlandi.",
-        reply_markup=InlineKeyboardMarkup([
-            [InlineKeyboardButton("🏠 Asosiy menyu", callback_data="admin_panel")]
-        ])
+        InlineKeyboardMarkup([[InlineKeyboardButton("🏠 Asosiy menyu", callback_data="admin_panel")]])
     )
     return ConversationHandler.END
 
@@ -287,20 +294,20 @@ async def start_delete_part(update: Update, context: ContextTypes.DEFAULT_TYPE):
     context.user_data.clear()
     books = get_books()
     if not books:
-        await query.edit_message_text(
+        await safe_edit_message(
+            query.message,
             "📚 Hali hech qanday kitob mavjud emas.",
-            reply_markup=InlineKeyboardMarkup([
-                [InlineKeyboardButton("🏠 Asosiy menyu", callback_data="home")]
-            ])
+            InlineKeyboardMarkup([[InlineKeyboardButton("🏠 Asosiy menyu", callback_data="home")]])
         )
         return ConversationHandler.END
 
     keyboard = [[InlineKeyboardButton(b["nomi"], callback_data=f"delpartbook_{b['id']}")] for b in books]
     keyboard.append([InlineKeyboardButton("🏠 Admin panel", callback_data="admin_panel")])
 
-    await query.edit_message_text(
+    await safe_edit_message(
+        query.message,
         "🗂 Qaysi kitobdan qism o‘chirmoqchisiz?",
-        reply_markup=InlineKeyboardMarkup(keyboard)
+        InlineKeyboardMarkup(keyboard)
     )
     return DELETE_PART_SELECT_BOOK
 
@@ -312,9 +319,10 @@ async def select_part_to_delete(update: Update, context: ContextTypes.DEFAULT_TY
     context.user_data["delete_book_id"] = book_id
     parts = get_parts(book_id)
     if not parts:
-        await query.edit_message_text(
+        await safe_edit_message(
+            query.message,
             "📭 Bu kitobda hech qanday qism yo‘q.",
-            reply_markup=InlineKeyboardMarkup([
+            InlineKeyboardMarkup([
                 [InlineKeyboardButton("🏠 Admin panel", callback_data="admin_panel")],
                 [InlineKeyboardButton("🔙 Ortga", callback_data="admin_delete_part")],
             ])
@@ -327,9 +335,10 @@ async def select_part_to_delete(update: Update, context: ContextTypes.DEFAULT_TY
         InlineKeyboardButton("🏠 Admin panel", callback_data="admin_panel")
     ])
 
-    await query.edit_message_text(
+    await safe_edit_message(
+        query.message,
         "🤔 Qaysi qismini o‘chirmoqchisiz?",
-        reply_markup=InlineKeyboardMarkup(keyboard)
+        InlineKeyboardMarkup(keyboard)
     )
     return DELETE_PART_SELECT
 
@@ -344,9 +353,10 @@ async def confirm_delete_part(update: Update, context: ContextTypes.DEFAULT_TYPE
         [InlineKeyboardButton("🔙 Ortga", callback_data="admin_delete_part")],
         [InlineKeyboardButton("🏠 Admin panel", callback_data="admin_panel")]
     ]
-    await query.edit_message_text(
+    await safe_edit_message(
+        query.message,
         f"⚠️ {index + 1}-qism o‘chirilsinmi?",
-        reply_markup=InlineKeyboardMarkup(keyboard)
+        InlineKeyboardMarkup(keyboard)
     )
     return CONFIRM_DELETE_PART
 
@@ -357,16 +367,15 @@ async def really_delete_part(update: Update, context: ContextTypes.DEFAULT_TYPE)
     book_id = context.user_data.get("delete_book_id")
     index = context.user_data.get("delete_part_index")
     if book_id is None or index is None:
-        await query.edit_message_text("❌ Xatolik.")
+        await safe_edit_message(query.message, "❌ Xatolik.")
         return ConversationHandler.END
 
     delete_part_by_index(book_id, index)
 
-    await query.edit_message_text(
+    await safe_edit_message(
+        query.message,
         "✅ Qism o‘chirildi.",
-        reply_markup=InlineKeyboardMarkup(
-            [[InlineKeyboardButton("🔙 Ortga", callback_data="admin_delete_part")]]
-        )
+        InlineKeyboardMarkup([[InlineKeyboardButton("🔙 Ortga", callback_data="admin_delete_part")]])
     )
     return ConversationHandler.END
 
@@ -381,9 +390,10 @@ async def admin_list_books(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await query.answer()
     books = get_books()
     if not books:
-        await query.edit_message_text(
+        await safe_edit_message(
+            query.message,
             "📚 Hozircha hech qanday kitob mavjud emas.",
-            reply_markup=InlineKeyboardMarkup([
+            InlineKeyboardMarkup([
                 [InlineKeyboardButton("🔙 Ortga", callback_data="admin_panel")],
                 [InlineKeyboardButton("🏠 Asosiy menyu", callback_data="home")]
             ])
@@ -403,9 +413,10 @@ async def admin_list_books(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     keyboard.append([InlineKeyboardButton("🔙 Ortga", callback_data="admin_panel")])
 
-    await query.edit_message_text(
+    await safe_edit_message(
+        query.message,
         "🗑 Qaysi kitobni o‘chirmoqchisiz?",
-        reply_markup=InlineKeyboardMarkup(keyboard)
+        InlineKeyboardMarkup(keyboard)
     )
     return ASK_BOOK_DELETE
 
@@ -419,9 +430,10 @@ async def ask_confirm_book_delete(update: Update, context: ContextTypes.DEFAULT_
         [InlineKeyboardButton("✅ Ha, o‘chirish", callback_data="confirm_delete_book")],
         [InlineKeyboardButton("❌ Bekor qilish", callback_data="admin_panel")]
     ]
-    await query.edit_message_text(
+    await safe_edit_message(
+        query.message,
         "⚠️ Kitob o‘chirilsinmi?",
-        reply_markup=InlineKeyboardMarkup(keyboard)
+        InlineKeyboardMarkup(keyboard)
     )
     return CONFIRM_BOOK_DELETE
 
@@ -431,7 +443,7 @@ async def confirm_book_delete(update: Update, context: ContextTypes.DEFAULT_TYPE
     await query.answer()
     book_id = context.user_data.get("delete_book_id")
     if not book_id:
-        await query.edit_message_text("❌ Xatolik yuz berdi.")
+        await safe_edit_message(query.message, "❌ Xatolik yuz berdi.")
         return ConversationHandler.END
 
     delete_book(book_id)
@@ -440,8 +452,9 @@ async def confirm_book_delete(update: Update, context: ContextTypes.DEFAULT_TYPE
         [InlineKeyboardButton("🔙 Ortga", callback_data="admin_list_books")],
         [InlineKeyboardButton("🏠 Asosiy menyu", callback_data="admin_panel")]
     ]
-    await query.edit_message_text(
+    await safe_edit_message(
+        query.message,
         "✅ Kitob o‘chirildi.",
-        reply_markup=InlineKeyboardMarkup(keyboard)
+        InlineKeyboardMarkup(keyboard)
     )
     return ConversationHandler.END
