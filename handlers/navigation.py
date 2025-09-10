@@ -1,6 +1,6 @@
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
 from telegram.ext import ContextTypes
-from utils import is_admin
+from utils import is_admin, safe_edit_message
 
 
 async def back_to_home(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -15,11 +15,12 @@ async def back_to_home(update: Update, context: ContextTypes.DEFAULT_TYPE):
         [InlineKeyboardButton("💬 Fikr bildirish", callback_data='feedback')],
         [InlineKeyboardButton("👤 Admin bilan bog‘lanish", callback_data='admin_contact')],
     ]
-    # <<< MUHIM: home menyuda ham admin panel tugmasini shartli ko'rsatamiz
+    # home menyuda ham admin panel tugmasini shartli ko'rsatamiz
     if is_admin(user_id):
         keyboard.append([InlineKeyboardButton("🛠️ Admin panel", callback_data="admin_panel")])
 
-    await query.edit_message_text(
+    await safe_edit_message(
+        query.message,
         text="🏠 Asosiy menyuga xush kelibsiz!",
         reply_markup=InlineKeyboardMarkup(keyboard)
     )
