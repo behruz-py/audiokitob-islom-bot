@@ -1,6 +1,7 @@
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ContextTypes, ConversationHandler
 from storage import add_feedback
+from utils import safe_edit_message
 
 ASK_FEEDBACK = 1
 
@@ -15,7 +16,8 @@ async def ask_feedback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         InlineKeyboardButton("🏠 Asosiy menyu", callback_data="home"),
     ]]
 
-    await query.edit_message_text(
+    await safe_edit_message(
+        query.message,
         text=(
             "💬 Fikringizni yozib yuboring. Taklif, tanqid yoki minnatdorchilik bo‘lishi mumkin.\n\n"
             "✍️ Yozib bo‘lgach, yuboring.\n\n"
@@ -54,8 +56,9 @@ async def cancel_feedback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await query.answer()
 
     keyboard = [[InlineKeyboardButton("🏠 Asosiy menyu", callback_data="home")]]
-    await query.edit_message_text(
+    await safe_edit_message(
+        query.message,
         "❌ Fikr bildirish bekor qilindi.\n\nQuyidagi tugma orqali asosiy menyuga qaytishingiz mumkin:",
-        reply_markup=InlineKeyboardMarkup(keyboard)
+        InlineKeyboardMarkup(keyboard)
     )
     return ConversationHandler.END
