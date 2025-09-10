@@ -3,6 +3,9 @@ from telegram.ext import (
     ApplicationBuilder, CommandHandler, ContextTypes, ConversationHandler,
     CallbackQueryHandler, MessageHandler, filters
 )
+from telegram.error import BadRequest
+from telegram.constants import ParseMode
+
 from config import BOT_TOKEN
 from storage import init_db, add_user
 from utils import is_admin
@@ -56,6 +59,45 @@ from handlers.book_edit import (
 )
 
 
+# ------------------ Xavfsiz tahrirlash helperlari ------------------
+
+def _same_markup(a, b) -> bool:
+    """InlineKeyboardMarkup obyektlarini mazmunga ko'ra solishtiradi."""
+    if a is None and b is None:
+        return True
+    if (a is None) != (b is None):
+        return False
+    try:
+        return a.to_dict() == b.to_dict()
+    except Exception:
+        return False
+
+
+async def safe_edit_message(message, text: str, reply_markup=None, parse_mode=ParseMode.HTML):
+    """
+    Xabarni faqat o'zgargan bo'lsa tahrirlaydi. Aks holda jim o'tkazadi.
+    'message can't be edited' kabi holatlarda yangi xabar yuboradi.
+    """
+    cur_text = message.text or message.caption or ""
+    new_text = text or ""
+    if (cur_text == new_text) and _same_markup(message.reply_markup, reply_markup):
+        return
+
+    try:
+        if cur_text != new_text:
+            await message.edit_text(new_text, reply_markup=reply_markup, parse_mode=parse_mode)
+        else:
+            await message.edit_reply_markup(reply_markup=reply_markup)
+    except BadRequest as e:
+        s = str(e)
+        if "Message is not modified" in s:
+            return
+        if "message can't be edited" in s.lower() or "message to edit not found" in s.lower():
+            await message.reply_text(new_text, reply_markup=reply_markup, parse_mode=parse_mode)
+        else:
+            raise
+
+
 # ---------- Start va Asosiy menyu ----------
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -72,22 +114,33 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if is_admin(user.id):
         keyboard.append([InlineKeyboardButton("🛠️ Admin panel", callback_data="admin_panel")])
 
-    text = (f"<b>🖐Assalomu alaykum, {user.first_name}</b>!\n\n"
-            "📖 Bu bot orqali audiokitoblarimizni qulay tarzda tinglashingiz mumkin.\n\n🔈<b>Sahifamiz:</b> @audiokitoblar_islom\n\n\n"
-            "👇🏻 Quyidagi menyulardan birini tanlang:")
+    text = (
+        f"<b>🖐Assalomu alaykum, {user.first_name}</b>!\n\n"
+        "📖 Bu bot orqali audiokitoblarimizni qulay tarzda tinglashingiz mumkin.\n\n"
+        "🔈<b>Sahifamiz:</b> @audiokitoblar_islom\n\n\n"
+        "👇🏻 Quyidagi menyulardan birini tanlang:"
+    )
 
     if update.message:
-        await update.message.reply_text(text, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="HTML")
+        # /start komandasi — yangi xabar
+        await update.message.reply_text(text, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode=ParseMode.HTML)
     else:
-        await update.callback_query.edit_message_text(text, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="HTML")
+        # CallbackQuery — mavjud xabarni xavfsiz tahrirlash
+        query = update.callback_query
+        await query.answer()  # spinnerni yopish
+        await safe_edit_message(query.message, text, InlineKeyboardMarkup(keyboard), parse_mode=ParseMode.HTML)
 
 
 async def admin_contact(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
     keyboard = [[InlineKeyboardButton("🏠 Asosiy menyu", callback_data="home")]]
-    await query.edit_message_text("👤 Murojaat uchun: @huda_murojaat_bot\n",
-                                  reply_markup=InlineKeyboardMarkup(keyboard))
+    await safe_edit_message(
+        query.message,
+        "👤 Murojaat uchun: @huda_murojaat_bot\n",
+        InlineKeyboardMarkup(keyboard),
+        parse_mode=ParseMode.HTML
+    )
 
 
 async def admin_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -106,15 +159,15 @@ def main():
 
     # ----- Feedback -----
     app.add_handler(ConversationHandler(
-        entry_points=[CallbackQueryHandler(ask_feedback, pattern="^feedback$")],
+        entry_points=[CallbackQueryHandler(ask_feedback, pattern=r"^feedback$")],
         states={ASK_FEEDBACK: [
             MessageHandler(filters.TEXT & ~filters.COMMAND, save_feedback),
-            CallbackQueryHandler(cancel_feedback, pattern="^cancel_feedback$"),
-            CallbackQueryHandler(start, pattern="^home$")
+            CallbackQueryHandler(cancel_feedback, pattern=r"^cancel_feedback$"),
+            CallbackQueryHandler(start, pattern=r"^home$")
         ]},
         fallbacks=[
-            CallbackQueryHandler(cancel_feedback, pattern="^cancel_feedback$"),
-            CallbackQueryHandler(start, pattern="^home$"),
+            CallbackQueryHandler(cancel_feedback, pattern=r"^cancel_feedback$"),
+            CallbackQueryHandler(start, pattern=r"^home$"),
             MessageHandler(filters.COMMAND, cancel_feedback)
         ],
         per_chat=True, allow_reentry=True
@@ -122,7 +175,7 @@ def main():
 
     # ----- Add Book (with genres) -----
     app.add_handler(ConversationHandler(
-        entry_points=[CallbackQueryHandler(ask_book_name, pattern="^admin_add_book$")],
+        entry_points=[CallbackQueryHandler(ask_book_name, pattern=r"^admin_add_book$")],
         states={
             ADD_BOOK_NAME: [MessageHandler(filters.TEXT & ~filters.COMMAND, receive_book_name)],
             SELECT_BOOK_GENRES: [
@@ -131,58 +184,58 @@ def main():
             ],
             ADD_BOOK_PARTS: [
                 MessageHandler(filters.TEXT & ~filters.COMMAND, receive_book_part),
-                CallbackQueryHandler(finish_add_book, pattern="^finish_add_book$"),
-                CallbackQueryHandler(cancel_add_book, pattern="^cancel_add_book$")
+                CallbackQueryHandler(finish_add_book, pattern=r"^finish_add_book$"),
+                CallbackQueryHandler(cancel_add_book, pattern=r"^cancel_add_book$")
             ]
         },
-        fallbacks=[CallbackQueryHandler(cancel_add_book, pattern="^cancel_add_book$")],
+        fallbacks=[CallbackQueryHandler(cancel_add_book, pattern=r"^cancel_add_book$")],
         per_chat=True, allow_reentry=True
     ))
 
     # ----- Add Part -----
     app.add_handler(ConversationHandler(
-        entry_points=[CallbackQueryHandler(start_add_part, pattern="^admin_add_part$")],
+        entry_points=[CallbackQueryHandler(start_add_part, pattern=r"^admin_add_part$")],
         states={
             ADD_PART_SELECT_BOOK: [CallbackQueryHandler(select_book_for_part_add, pattern=r"^addpart_")],
             ADD_PART_URL: [
                 MessageHandler(filters.TEXT & ~filters.COMMAND, receive_part_url),
-                CallbackQueryHandler(cancel_add_part, pattern="^cancel_add_part$")
+                CallbackQueryHandler(cancel_add_part, pattern=r"^cancel_add_part$")
             ],
         },
-        fallbacks=[CallbackQueryHandler(cancel_add_part, pattern="^cancel_add_part$")],
+        fallbacks=[CallbackQueryHandler(cancel_add_part, pattern=r"^cancel_add_part$")],
         per_chat=True, allow_reentry=True
     ))
 
     # ----- Delete Part -----
     app.add_handler(ConversationHandler(
-        entry_points=[CallbackQueryHandler(start_delete_part, pattern="^admin_delete_part$")],
+        entry_points=[CallbackQueryHandler(start_delete_part, pattern=r"^admin_delete_part$")],
         states={
             DELETE_PART_SELECT_BOOK: [CallbackQueryHandler(select_part_to_delete, pattern=r"^delpartbook_")],
             DELETE_PART_SELECT: [CallbackQueryHandler(confirm_delete_part, pattern=r"^delpart_")],
             CONFIRM_DELETE_PART: [CallbackQueryHandler(really_delete_part, pattern=r"^confirm_delete_part$")],
         },
-        fallbacks=[CallbackQueryHandler(admin_panel, pattern="^admin_panel$")],
+        fallbacks=[CallbackQueryHandler(admin_panel, pattern=r"^admin_panel$")],
         per_chat=True, allow_reentry=True
     ))
 
     # ----- Broadcast -----
     app.add_handler(ConversationHandler(
-        entry_points=[CallbackQueryHandler(ask_broadcast_message, pattern="^admin_broadcast$")],
+        entry_points=[CallbackQueryHandler(ask_broadcast_message, pattern=r"^admin_broadcast$")],
         states={
             ASK_BROADCAST_MESSAGE: [MessageHandler(filters.ALL, handle_broadcast)],
             CONFIRM_BROADCAST: [
-                CallbackQueryHandler(confirm_broadcast, pattern="^confirm_broadcast$"),
-                CallbackQueryHandler(cancel_broadcast, pattern="^cancel_broadcast$")
+                CallbackQueryHandler(confirm_broadcast, pattern=r"^confirm_broadcast$"),
+                CallbackQueryHandler(cancel_broadcast, pattern=r"^cancel_broadcast$")
             ],
         },
-        fallbacks=[CallbackQueryHandler(cancel_broadcast, pattern="^cancel_broadcast$")],
+        fallbacks=[CallbackQueryHandler(cancel_broadcast, pattern=r"^cancel_broadcast$")],
         per_chat=True, allow_reentry=True
     ))
 
     # ----- Adminlar -----
-    app.add_handler(CallbackQueryHandler(admin_manage_admins, pattern="^admin_manage_admins$"))
+    app.add_handler(CallbackQueryHandler(admin_manage_admins, pattern=r"^admin_manage_admins$"))
     app.add_handler(ConversationHandler(
-        entry_points=[CallbackQueryHandler(ask_admin_id, pattern="^admin_add_admin$")],
+        entry_points=[CallbackQueryHandler(ask_admin_id, pattern=r"^admin_add_admin$")],
         states={ASK_NEW_ADMIN_ID: [MessageHandler(filters.TEXT & ~filters.COMMAND, receive_admin_id)]},
         fallbacks=[], per_chat=True, allow_reentry=True
     ))
@@ -191,7 +244,7 @@ def main():
 
     # ----- Janrlarni boshqarish -----
     app.add_handler(ConversationHandler(
-        entry_points=[CallbackQueryHandler(admin_genre_menu, pattern="^admin_manage_genres$")],
+        entry_points=[CallbackQueryHandler(admin_genre_menu, pattern=r"^admin_manage_genres$")],
         states={
             GENRE_MENU: [
                 CallbackQueryHandler(ask_genre_name, pattern=r"^admin_add_genre$"),
@@ -212,9 +265,9 @@ def main():
             ],
         },
         fallbacks=[
-            CallbackQueryHandler(admin_genre_menu, pattern="^admin_manage_genres$"),
-            CallbackQueryHandler(admin_panel, pattern="^admin_panel$"),
-            CallbackQueryHandler(start, pattern="^home$"),
+            CallbackQueryHandler(admin_genre_menu, pattern=r"^admin_manage_genres$"),
+            CallbackQueryHandler(admin_panel, pattern=r"^admin_panel$"),
+            CallbackQueryHandler(start, pattern=r"^home$"),
         ],
         per_chat=True, allow_reentry=True
     ))
@@ -261,9 +314,9 @@ def main():
     ))
 
     # ----- Static handlers -----
-    app.add_handler(CallbackQueryHandler(start, pattern="^home$"))
-    app.add_handler(CallbackQueryHandler(admin_panel, pattern="^admin_panel$"))
-    app.add_handler(CallbackQueryHandler(admin_contact, pattern="^admin_contact$"))
+    app.add_handler(CallbackQueryHandler(start, pattern=r"^home$"))
+    app.add_handler(CallbackQueryHandler(admin_panel, pattern=r"^admin_panel$"))
+    app.add_handler(CallbackQueryHandler(admin_contact, pattern=r"^admin_contact$"))
 
     app.add_handler(CallbackQueryHandler(send_audio_part, pattern=r"^part_"))
     app.add_handler(CallbackQueryHandler(show_book_parts, pattern=r"^book_"))
@@ -282,7 +335,7 @@ def main():
     app.add_handler(CallbackQueryHandler(show_last_feedbacks, pattern=r"^admin_view_feedback$"))
     app.add_handler(CallbackQueryHandler(show_genres, pattern=r"^genres$"))
     app.add_handler(CallbackQueryHandler(show_books_in_genre, pattern=r"^genre_\d+$"))
-    app.add_handler(CallbackQueryHandler(dedupe_feedback_handler, pattern="^admin_dedupe_feedback$"))
+    app.add_handler(CallbackQueryHandler(dedupe_feedback_handler, pattern=r"^admin_dedupe_feedback$"))
 
     print("✅ Bot ishga tushdi.")
     app.run_polling()
