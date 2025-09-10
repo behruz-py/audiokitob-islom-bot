@@ -1,6 +1,6 @@
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ContextTypes, ConversationHandler, MessageHandler, CallbackQueryHandler, filters
-from utils import load_admins, save_admins, BACK_HOME_KB
+from utils import load_admins, save_admins, BACK_HOME_KB, safe_edit_message
 
 ASK_NEW_ADMIN_ID = range(1)
 
@@ -14,16 +14,17 @@ async def admin_manage_admins(update: Update, context: ContextTypes.DEFAULT_TYPE
         [InlineKeyboardButton("➖ Adminni o‘chirish", callback_data="admin_delete_admin")],
         [InlineKeyboardButton("🔙 Ortga", callback_data="admin_panel")]
     ]
-    await query.edit_message_text("👤 Adminlarni boshqarish menyusi:", reply_markup=InlineKeyboardMarkup(keyboard))
+    await safe_edit_message(query.message, "👤 Adminlarni boshqarish menyusi:", InlineKeyboardMarkup(keyboard))
 
 
 # ➕ Admin qo‘shish
 async def ask_admin_id(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
-    await query.edit_message_text(
+    await safe_edit_message(
+        query.message,
         "🆔 Yangi adminning foydalanuvchi ID sini yuboring:",
-        reply_markup=BACK_HOME_KB
+        BACK_HOME_KB
     )
     return ASK_NEW_ADMIN_ID
 
@@ -67,12 +68,13 @@ async def delete_admin_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
     keyboard.append([InlineKeyboardButton("🔙 Ortga", callback_data="admin_manage_admins")])
 
     if len(keyboard) == 1:
-        await query.edit_message_text("📛 Siz yagona adminsiz. O‘zingizni o‘chira olmaysiz!", reply_markup=BACK_HOME_KB)
+        await safe_edit_message(query.message, "📛 Siz yagona adminsiz. O‘zingizni o‘chira olmaysiz!", BACK_HOME_KB)
         return
 
-    await query.edit_message_text(
+    await safe_edit_message(
+        query.message,
         "🗑 Qaysi adminni o‘chirmoqchisiz?",
-        reply_markup=InlineKeyboardMarkup(keyboard)
+        InlineKeyboardMarkup(keyboard)
     )
 
 
@@ -84,9 +86,9 @@ async def remove_admin_confirm(update: Update, context: ContextTypes.DEFAULT_TYP
     admins = load_admins()
 
     if admin_id not in admins:
-        await query.edit_message_text("❌ Admin topilmadi.", reply_markup=BACK_HOME_KB)
+        await safe_edit_message(query.message, "❌ Admin topilmadi.", BACK_HOME_KB)
         return
 
     del admins[admin_id]
     save_admins(admins)
-    await query.edit_message_text("✅ Admin muvaffaqiyatli o‘chirildi.", reply_markup=BACK_HOME_KB)
+    await safe_edit_message(query.message, "✅ Admin muvaffaqiyatli o‘chirildi.", BACK_HOME_KB)
