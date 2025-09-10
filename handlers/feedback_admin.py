@@ -1,6 +1,7 @@
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
 from telegram.ext import ContextTypes
 from storage import get_feedback, deduplicate_feedback
+from utils import safe_edit_message
 
 
 async def show_last_feedbacks(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -26,9 +27,11 @@ async def show_last_feedbacks(update: Update, context: ContextTypes.DEFAULT_TYPE
         [InlineKeyboardButton("🏠 Asosiy menyu", callback_data="home")]
     ]
 
-    await query.edit_message_text(
-        text=text, parse_mode="HTML",
-        reply_markup=InlineKeyboardMarkup(keyboard)
+    await safe_edit_message(
+        query.message,
+        text=text,
+        reply_markup=InlineKeyboardMarkup(keyboard),
+        parse_mode="HTML"
     )
 
 
@@ -45,5 +48,10 @@ async def dedupe_feedback_handler(update: Update, context: ContextTypes.DEFAULT_
         [InlineKeyboardButton("🏠 Admin panel", callback_data="admin_panel")],
     ]
 
-    await query.edit_message_text(text=text, parse_mode="HTML",
-                                  reply_markup=InlineKeyboardMarkup(keyboard))
+    await safe_edit_message(
+        query.message,
+        text=text,
+        reply_markup=InlineKeyboardMarkup(keyboard),
+        parse_mode="HTML"
+    )
+
