@@ -1,6 +1,6 @@
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ContextTypes
-from utils import is_admin
+from utils import is_admin, safe_edit_message
 
 
 # ✅ Admin panelga kirish
@@ -15,7 +15,7 @@ async def admin_panel(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not is_admin(user_id):
         text = "⛔ Sizda bu bo‘limga kirish huquqi yo‘q."
         if query:
-            await query.edit_message_text(text)
+            await safe_edit_message(query.message, text)
         else:
             await update.message.reply_text(text)
         return
@@ -37,6 +37,7 @@ async def admin_panel(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     text = "🛠️ <b>Admin panel</b>\n\nQuyidagi bo‘limlardan birini tanlang:"
     if query:
-        await query.edit_message_text(text, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="HTML")
+        await safe_edit_message(query.message, text, InlineKeyboardMarkup(keyboard), parse_mode="HTML")
     else:
         await update.message.reply_text(text, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="HTML")
+
