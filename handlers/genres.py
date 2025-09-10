@@ -1,7 +1,7 @@
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
 from telegram.ext import ContextTypes, ConversationHandler, MessageHandler, CallbackQueryHandler, filters
 from storage import get_genres, add_genre, delete_genre, get_books_by_genre
-from utils import is_admin
+from utils import is_admin, safe_edit_message
 
 # States
 GENRE_MENU = 590
@@ -20,7 +20,7 @@ async def show_genres(update: Update, context: ContextTypes.DEFAULT_TYPE):
     genres = get_genres()
     if not genres:
         kb = [[InlineKeyboardButton("🏠 Asosiy menyu", callback_data="home")]]
-        await query.edit_message_text("🏷 Hali janrlar qo‘shilmagan.", reply_markup=InlineKeyboardMarkup(kb))
+        await safe_edit_message(query.message, "🏷 Hali janrlar qo‘shilmagan.", InlineKeyboardMarkup(kb))
         return
 
     keyboard = []
@@ -38,9 +38,10 @@ async def show_genres(update: Update, context: ContextTypes.DEFAULT_TYPE):
         InlineKeyboardButton("🏠 Asosiy menyu", callback_data="home"),
     ])
 
-    await query.edit_message_text(
+    await safe_edit_message(
+        query.message,
         "🏷 Janrlar ro‘yxati:",
-        reply_markup=InlineKeyboardMarkup(keyboard)
+        InlineKeyboardMarkup(keyboard)
     )
 
 
@@ -57,9 +58,10 @@ async def show_books_in_genre(update: Update, context: ContextTypes.DEFAULT_TYPE
             InlineKeyboardButton("🔙 Ortga (janrlar)", callback_data="genres"),
             InlineKeyboardButton("🏠 Asosiy menyu", callback_data="home"),
         ]]
-        await query.edit_message_text(
+        await safe_edit_message(
+            query.message,
             "ℹ️ Bu janrda hozircha kitob yo‘q.",
-            reply_markup=InlineKeyboardMarkup(kb)
+            InlineKeyboardMarkup(kb)
         )
         return
 
@@ -78,9 +80,10 @@ async def show_books_in_genre(update: Update, context: ContextTypes.DEFAULT_TYPE
         InlineKeyboardButton("🏠 Asosiy menyu", callback_data="home"),
     ])
 
-    await query.edit_message_text(
+    await safe_edit_message(
+        query.message,
         "📚 Tanlangan janrdagi kitoblar:",
-        reply_markup=InlineKeyboardMarkup(keyboard)
+        InlineKeyboardMarkup(keyboard)
     )
 
 
@@ -92,7 +95,7 @@ async def admin_genre_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await query.answer()
 
     if not is_admin(update.effective_user.id):
-        await query.edit_message_text("⛔ Sizda bu bo‘limga kirish huquqi yo‘q.")
+        await safe_edit_message(query.message, "⛔ Sizda bu bo‘limga kirish huquqi yo‘q.")
         return ConversationHandler.END
 
     keyboard = [
@@ -101,10 +104,11 @@ async def admin_genre_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
         [InlineKeyboardButton("🔙 Ortga", callback_data="admin_panel")],
         [InlineKeyboardButton("🏠 Asosiy menyu", callback_data="home")],
     ]
-    await query.edit_message_text(
+    await safe_edit_message(
+        query.message,
         "🏷 <b>Janrlarni boshqarish</b>",
-        parse_mode="HTML",
-        reply_markup=InlineKeyboardMarkup(keyboard)
+        InlineKeyboardMarkup(keyboard),
+        parse_mode="HTML"
     )
     return GENRE_MENU
 
@@ -118,9 +122,10 @@ async def ask_genre_name(update: Update, context: ContextTypes.DEFAULT_TYPE):
         InlineKeyboardButton("🔙 Ortga", callback_data="admin_manage_genres"),
         InlineKeyboardButton("🏠 Asosiy menyu", callback_data="home"),
     ]]
-    await query.edit_message_text(
+    await safe_edit_message(
+        query.message,
         "🆕 Yangi janr nomini yuboring:",
-        reply_markup=InlineKeyboardMarkup(kb)
+        InlineKeyboardMarkup(kb)
     )
     return ASK_GENRE_NAME
 
@@ -147,7 +152,7 @@ async def delete_genre_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
     genres = get_genres()
     if not genres:
         kb = [[InlineKeyboardButton("🏷 Janr menyusi", callback_data="admin_manage_genres")]]
-        await query.edit_message_text("ℹ️ O‘chiradigan janr yo‘q.", reply_markup=InlineKeyboardMarkup(kb))
+        await safe_edit_message(query.message, "ℹ️ O‘chiradigan janr yo‘q.", InlineKeyboardMarkup(kb))
         return ConversationHandler.END
 
     keyboard = []
@@ -165,9 +170,10 @@ async def delete_genre_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
         InlineKeyboardButton("🏠 Asosiy menyu", callback_data="home"),
     ])
 
-    await query.edit_message_text(
+    await safe_edit_message(
+        query.message,
         "🗑 Qaysi janrni o‘chirmoqchisiz?",
-        reply_markup=InlineKeyboardMarkup(keyboard)
+        InlineKeyboardMarkup(keyboard)
     )
     return DELETE_GENRE_SELECT
 
@@ -185,9 +191,10 @@ async def confirm_delete_genre(update: Update, context: ContextTypes.DEFAULT_TYP
         [InlineKeyboardButton("🔙 Ortga", callback_data="admin_delete_genre")],
         [InlineKeyboardButton("🏠 Asosiy menyu", callback_data="home")],
     ]
-    await query.edit_message_text(
+    await safe_edit_message(
+        query.message,
         "⚠️ Ushbu janr o‘chirilsinmi? (Kitoblar o‘chmaydi, faqat bog‘lanishlar o‘chadi.)",
-        reply_markup=InlineKeyboardMarkup(kb)
+        InlineKeyboardMarkup(kb)
     )
     return CONFIRM_DELETE_GENRE
 
@@ -199,14 +206,17 @@ async def really_delete_genre(update: Update, context: ContextTypes.DEFAULT_TYPE
 
     gid = context.user_data.get("delete_genre_id")
     if gid is None:
-        await query.edit_message_text("❌ Xatolik.", reply_markup=InlineKeyboardMarkup([
-            [InlineKeyboardButton("🏷 Janr menyusi", callback_data="admin_manage_genres")]
-        ]))
+        await safe_edit_message(
+            query.message,
+            "❌ Xatolik.",
+            InlineKeyboardMarkup([[InlineKeyboardButton("🏷 Janr menyusi", callback_data="admin_manage_genres")]])
+        )
         return ConversationHandler.END
 
     delete_genre(int(gid))
     context.user_data.pop("delete_genre_id", None)
 
     kb = [[InlineKeyboardButton("🏷 Janr menyusi", callback_data="admin_manage_genres")]]
-    await query.edit_message_text("✅ Janr o‘chirildi.", reply_markup=InlineKeyboardMarkup(kb))
+    await safe_edit_message(query.message, "✅ Janr o‘chirildi.", InlineKeyboardMarkup(kb))
     return ConversationHandler.END
+
