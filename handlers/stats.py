@@ -1,6 +1,7 @@
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
 from telegram.ext import ContextTypes
 from storage import get_users, get_book_views, get_books
+from utils import safe_edit_message
 
 
 async def show_stats_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -11,7 +12,7 @@ async def show_stats_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
         [InlineKeyboardButton("📖 Kitoblar statistikasi", callback_data="stat_books")],
         [InlineKeyboardButton("🏠 Asosiy menyu", callback_data="home")]
     ]
-    await query.edit_message_text("📊 Statistika menyusi:", reply_markup=InlineKeyboardMarkup(keyboard))
+    await safe_edit_message(query.message, "📊 Statistika menyusi:", InlineKeyboardMarkup(keyboard))
 
 
 async def show_user_count(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -22,7 +23,8 @@ async def show_user_count(update: Update, context: ContextTypes.DEFAULT_TYPE):
         InlineKeyboardButton("🔙 Ortga", callback_data="stats"),
         InlineKeyboardButton("🏠 Asosiy menyu", callback_data="home")
     ]]
-    await query.edit_message_text(
+    await safe_edit_message(
+        query.message,
         text=f"👥 Botdan foydalanuvchilar soni: <b>{count}</b> ta",
         reply_markup=InlineKeyboardMarkup(keyboard),
         parse_mode="HTML"
@@ -51,4 +53,10 @@ async def show_book_stats(update: Update, context: ContextTypes.DEFAULT_TYPE):
         InlineKeyboardButton("🔙 Ortga", callback_data="stats"),
         InlineKeyboardButton("🏠 Asosiy menyu", callback_data="home")
     ]]
-    await query.edit_message_text(text=text, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="HTML")
+    await safe_edit_message(
+        query.message,
+        text=text,
+        reply_markup=InlineKeyboardMarkup(keyboard),
+        parse_mode="HTML"
+    )
+
