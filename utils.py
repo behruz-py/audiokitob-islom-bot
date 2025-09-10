@@ -1,4 +1,5 @@
 from telegram import InlineKeyboardMarkup, InlineKeyboardButton
+from telegram.error import BadRequest
 from storage import get_admins, add_admin, delete_admin
 from config import ADMINS as ENV_ADMINS
 
@@ -55,6 +56,49 @@ def save_admins(admins: dict):
     for k in list(existing.keys()):
         if k not in admins:
             delete_admin(int(k))
+
+
+# ---------------- Xabarni xavfsiz tahrirlash helperi ----------------
+
+def _same_markup(a, b) -> bool:
+    """InlineKeyboardMarkup obyektlarini mazmunga ko'ra solishtiradi."""
+    if a is None and b is None:
+        return True
+    if (a is None) != (b is None):
+        return False
+    try:
+        return a.to_dict() == b.to_dict()
+    except Exception:
+        return False
+
+
+async def safe_edit_message(message, text: str, reply_markup=None, parse_mode: str = "HTML"):
+    """
+    Xabarni faqat o'zgargan bo'lsa tahrirlaydi. Aks holda jim o'tkazadi.
+    'message can't be edited' kabi holatlarda yangi xabar yuboradi.
+    """
+    cur_text = message.text or message.caption or ""
+    new_text = text or ""
+    # Hech qanday o'zgarish bo'lmasa, edit chaqirmaymiz
+    if (cur_text == new_text) and _same_markup(message.reply_markup, reply_markup):
+        return
+
+    try:
+        if cur_text != new_text:
+            await message.edit_text(new_text, reply_markup=reply_markup, parse_mode=parse_mode)
+        else:
+            await message.edit_reply_markup(reply_markup=reply_markup)
+    except BadRequest as e:
+        s = str(e)
+        if "Message is not modified" in s:
+            # allaqachon bir xil — jim o'tkazamiz
+            return
+        # Ba'zi holatlarda eski xabar tahrirlanmaydi: forward, juda eski, yoki yo'qolgan bo'lishi mumkin
+        if "message can't be edited" in s.lower() or "message to edit not found" in s.lower():
+            await message.reply_text(new_text, reply_markup=reply_markup, parse_mode=parse_mode)
+        else:
+            # boshqa xatolarni ko'taramiz — debug qilish uchun foydali
+            raise
 
 
 # Orqaga/Asosiy klaviatura (admin bo'limlarida)
